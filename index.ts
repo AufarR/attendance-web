@@ -399,16 +399,10 @@ const server = Bun.serve({
                 return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
             }
             try {
-                const requestBody = await req.json() as any; // Log the whole body first
-                console.log('[/api/meetings/mark-presence] Received request body:', JSON.stringify(requestBody, null, 2));
+                const requestBody = await req.json() as any;
 
                 const { meeting_id, signed_data, timestamp_nonce } = requestBody;
                 const user_id = session.userId;
-
-                console.log(`[/api/meetings/mark-presence] Processing: meeting_id=${meeting_id}, user_id=${user_id}, timestamp_nonce=${timestamp_nonce}`);
-                if (signed_data) {
-                    console.log(`[/api/meetings/mark-presence] Received signed_data (first 60 chars): ${String(signed_data).substring(0,60)}...`);
-                }
 
                 if (!meeting_id || !timestamp_nonce) { // Ensure timestamp_nonce is present
                     return new Response(JSON.stringify({ message: 'Missing meeting_id or timestamp_nonce' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
@@ -432,7 +426,6 @@ const server = Bun.serve({
                 if (!meetingDetails) {
                     return new Response(JSON.stringify({ message: 'Meeting not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
                 }
-                console.log('[/api/meetings/mark-presence] Meeting details found. Room public key (first 60 chars):', meetingDetails.room_public_key ? String(meetingDetails.room_public_key).substring(0,60) + '...' : 'NOT FOUND');
 
                 const now = new Date();
                 // Allow a 5 minute grace period for clock skew when checking timestamp_nonce for signature
@@ -453,17 +446,20 @@ const server = Bun.serve({
                     }
                     try {
                         const dataToVerify = `${meeting_id}:${user_id}:${timestamp_nonce}`;
-                        console.log(`[/api/meetings/mark-presence] DataToVerify string: "${dataToVerify}"`);
-                        console.log(`[/api/meetings/mark-presence] Using Public Key:\nSTART_OF_KEY\n${meetingDetails.room_public_key}\nEND_OF_KEY`); // Log the full key
+                        
+                        let rawPublicKey = meetingDetails.room_public_key;
+
+                        let processedPublicKey = rawPublicKey;
+                        if (typeof processedPublicKey === 'string') {
+                            // Replace literal '\\n' sequences with actual newline characters
+                            processedPublicKey = processedPublicKey.replace(/\\n/g, '\n');
+                        }
                         
                         const verify = createVerify('RSA-SHA256');
                         verify.update(dataToVerify);
-                        // Line 447 is likely here or the next line
-                        signatureVerified = verify.verify(meetingDetails.room_public_key, signed_data, 'base64');
-                        console.log(`[/api/meetings/mark-presence] Signature verification result: ${signatureVerified}`);
+                        signatureVerified = verify.verify(processedPublicKey, signed_data, 'base64');
                         
                         if (!signatureVerified) {
-                            console.warn('[/api/meetings/mark-presence] Signature verification failed.');
                             return new Response(JSON.stringify({ message: 'Invalid signature.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
                         }
                     } catch (e: any) {
@@ -471,9 +467,9 @@ const server = Bun.serve({
                         return new Response(JSON.stringify({ message: 'Error verifying signature.' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
                     }
                 } else {
-                    // For now, if no signature is provided, we can allow marking presence (simulated)
-                    // In a real scenario, you might make signed_data mandatory if BLE is expected
-                    console.log(`Presence marked for meeting ${meeting_id}, user ${user_id} without signature (simulated).`);
+                    // Signature is now mandatory
+                    console.log(`[/api/meetings/mark-presence] Attempt to mark presence without signature for meeting ${meeting_id}, user ${user_id}. Rejected.`);
+                    return new Response(JSON.stringify({ message: 'Signature is required to mark presence.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
                 }
 
                 db.prepare(
