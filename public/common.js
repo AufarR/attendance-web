@@ -95,7 +95,7 @@ async function checkUserSessionAndRole(expectedRole) {
         }
 
         if (expectedRole && user.role !== expectedRole) {
-            alert(`Access denied. You are logged in as ${user.role}, but this page requires ${expectedRole} role.`);
+            alert('Unauthenticated'); // Changed alert message
             // Redirect to an appropriate page, or login if no other page makes sense
             if (user.role === 'host') {
                 window.location.href = 'host.html';

@@ -23,9 +23,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadHostMeetings();
     populateUserAndRoomDropdowns();
 
-    const createMeetingForm = document.getElementById('create-meeting-form'); // Corrected ID from host.html
+    const createMeetingForm = document.getElementById('create-meeting-form'); 
     if (createMeetingForm) {
         createMeetingForm.addEventListener('submit', handleCreateMeeting);
+
+        // Store form title element and original text
+        formTitleElement = document.getElementById('form-title'); // Assuming you have <h3 id="form-title">Create New Meeting</h3> or similar
+        if (formTitleElement) {
+            originalFormTitleText = formTitleElement.textContent;
+        }
+
+        const submitButton = createMeetingForm.querySelector('button[type="submit"]');
+        if (submitButton) {
+            originalSubmitButtonText = submitButton.textContent;
+        }
+
+        let cancelEditButton = document.getElementById('cancel-edit-btn');
+        if (!cancelEditButton) {
+            cancelEditButton = document.createElement('button');
+            cancelEditButton.type = 'button';
+            cancelEditButton.id = 'cancel-edit-btn';
+            cancelEditButton.textContent = 'Cancel Edit';
+            cancelEditButton.style.display = 'none'; // Initially hidden
+            cancelEditButton.style.marginLeft = '10px'; // Add some space
+
+            if (submitButton && submitButton.parentNode) {
+                submitButton.parentNode.insertBefore(cancelEditButton, submitButton.nextSibling);
+            } else {
+                createMeetingForm.appendChild(cancelEditButton); // Fallback
+            }
+        }
+        cancelEditButton.addEventListener('click', cancelEditMode);
     }
 });
 
@@ -36,6 +64,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 let allUsers = []; // To store users for attendee selection
 let allRooms = []; // To store rooms for selection
+let editingMeetingId = null; // To track the meeting ID being edited
+let originalSubmitButtonText = ''; // To store the original text of the submit button
+let formTitleElement = null; // To store the reference to the form title element
+let originalFormTitleText = ''; // To store the original text of the form title
+
+// Helper function to format a Date object to YYYY-MM-DDTHH:MM string in local time
+function toLocalISOStringShort(date) {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
 
 async function populateUserAndRoomDropdowns() {
     try {
@@ -71,11 +113,12 @@ async function populateUserAndRoomDropdowns() {
 
 async function handleCreateMeeting(event) {
     event.preventDefault();
-    const roomId = document.getElementById('room-select').value; // Corrected ID
-    const startTime = document.getElementById('start-time').value; // Corrected ID
-    const endTime = document.getElementById('end-time').value; // Corrected ID
+    const form = event.target;
+    const roomId = document.getElementById('room-select').value;
+    const startTime = document.getElementById('start-time').value;
+    const endTime = document.getElementById('end-time').value;
     
-    const attendeesSelect = document.getElementById('attendees-select'); // Corrected ID
+    const attendeesSelect = document.getElementById('attendees-select');
     const selectedAttendees = Array.from(attendeesSelect.selectedOptions).map(option => option.value);
 
     if (!roomId || !startTime || !endTime) {
@@ -83,7 +126,6 @@ async function handleCreateMeeting(event) {
         return;
     }
     
-    // host_id will be determined by the server based on the session cookie
     const meetingData = {
         room_id: parseInt(roomId),
         start_time: new Date(startTime).toISOString(),
@@ -91,17 +133,30 @@ async function handleCreateMeeting(event) {
         attendees: selectedAttendees.map(id => parseInt(id)),
     };
 
+    let url = '/meetings'; // Changed from '/api/meetings'
+    let method = 'POST';
+
+    if (editingMeetingId) {
+        url = `/meetings/${editingMeetingId}`; // Changed from '/api/meetings/${editingMeetingId}'
+        method = 'PUT';
+    }
+
     try {
-        const result = await fetchApi('/meetings', {
-            method: 'POST',
+        const result = await fetchApi(url, {
+            method: method,
             body: JSON.stringify(meetingData),
         });
-        alert(result.message);
-        loadHostMeetings(); // Refresh the list
-        event.target.reset(); // Reset form
+        alert(result.message || (method === 'PUT' ? 'Meeting updated successfully!' : 'Meeting created successfully!'));
+        loadHostMeetings(); 
+
+        if (editingMeetingId) {
+            cancelEditMode(); 
+        } else {
+            form.reset(); 
+        }
     } catch (error) {
-        console.error('Failed to create meeting:', error);
-        // Error already alerted by fetchApi
+        console.error(`Failed to ${editingMeetingId ? 'update' : 'create'} meeting:`, error);
+        // fetchApi is expected to alert errors.
     }
 }
 
@@ -123,15 +178,27 @@ async function loadHostMeetings() {
         const ul = document.createElement('ul');
         meetings.forEach(meeting => {
             const li = document.createElement('li');
+            li.id = `meeting-item-${meeting.id}`; // Add unique ID to each list item
+            const now = new Date();
+            const meetingEndTime = new Date(meeting.end_time);
+            const isPastMeeting = meetingEndTime < now;
+
+            let buttonsHtml = '';
+            if (!isPastMeeting) {
+                buttonsHtml = `
+                    <button onclick="rescheduleMeetingPrompt(${meeting.id})">Reschedule</button>
+                    <button onclick="deleteMeeting(${meeting.id})">Delete</button>
+                `;
+            }
+
             li.innerHTML = `
                 <h4>Meeting ID: ${meeting.id} (Room: ${meeting.room_name})</h4>
-                <p>Time: ${new Date(meeting.start_time).toLocaleString()} - ${new Date(meeting.end_time).toLocaleString()}</p>
+                <p>Time: ${new Date(meeting.start_time).toLocaleString()} - ${new Date(meeting.end_time).toLocaleString()} ${isPastMeeting ? '(Past)' : ''}</p>
                 <p>Attendees:</p>
                 <ul>
                     ${meeting.attendees.map(att => `<li>${att.name} (${att.email}) - Status: ${att.status || 'pending'} ${att.signed_presence ? '(Signed)' : ''}</li>`).join('')}
                 </ul>
-                <button onclick="rescheduleMeetingPrompt(${meeting.id})">Reschedule</button>
-                <button onclick="deleteMeeting(${meeting.id})">Delete</button>
+                ${buttonsHtml}
             `;
             ul.appendChild(li);
         });
@@ -156,64 +223,95 @@ async function deleteMeeting(meetingId) {
     }
 }
 
-async function rescheduleMeetingPrompt(meetingId) {
-    // For simplicity, using prompts. A modal form would be better in a real app.
-    // Fetch current meeting details to pre-fill, or have a dedicated reschedule form/page.
-    const currentMeeting = await fetchApi(`/meetings/details/${meetingId}`);
-    if (!currentMeeting) {
-        alert("Could not fetch meeting details to reschedule.");
-        return;
-    }
-
-    // Ensure allRooms is populated before trying to use it for a prompt default
-    if (!allRooms || allRooms.length === 0) {
-        await populateUserAndRoomDropdowns(); // Attempt to populate if empty
-    }
-    
-    const currentRoom = allRooms.find(r => r.id === currentMeeting.room_id);
-    const roomPromptMessage = currentRoom ? `Enter new Room ID (current: ${currentMeeting.room_id} - ${currentRoom.name}):` : `Enter new Room ID (current: ${currentMeeting.room_id}):`;
-
-    const newRoomId = prompt(roomPromptMessage, currentMeeting.room_id);
-    const newStartTimeStr = prompt("Enter new Start Time (YYYY-MM-DDTHH:MM):", currentMeeting.start_time.substring(0,16));
-    const newEndTimeStr = prompt("Enter new End Time (YYYY-MM-DDTHH:MM):", currentMeeting.end_time.substring(0,16));
-    
-    // Simplistic attendee management for reschedule: re-prompt or carry over.
-    // For now, let's assume we might want to re-specify attendees or the API handles it.
-    // The current backend PUT /api/meetings/:id expects attendees array.
-    // We'll re-use the existing attendee list for simplicity in this prompt example.
-    const newAttendees = currentMeeting.attendees.map(att => att.id);
-
-
-    if (!newRoomId || !newStartTimeStr || !newEndTimeStr) {
-        alert("All fields are required for rescheduling.");
-        return;
-    }
-
-    const newStartTime = new Date(newStartTimeStr).toISOString();
-    const newEndTime = new Date(newEndTimeStr).toISOString();
-
-    if (isNaN(new Date(newStartTime).getTime()) || isNaN(new Date(newEndTime).getTime())) {
-        alert("Invalid date format.");
-        return;
-    }
-
-    const rescheduleData = {
-        room_id: parseInt(newRoomId),
-        start_time: newStartTime,
-        end_time: newEndTime,
-        attendees: newAttendees // Send current attendees
-    };
-
+async function rescheduleMeetingPrompt(meetingIdToEdit) {
     try {
-        const result = await fetchApi(`/meetings/${meetingId}`, {
-            method: 'PUT',
-            body: JSON.stringify(rescheduleData),
+        const currentMeeting = await fetchApi(`/meetings/details/${meetingIdToEdit}`);
+        if (!currentMeeting) {
+            alert("Could not fetch meeting details to reschedule.");
+            return;
+        }
+
+        if (allUsers.length === 0 || allRooms.length === 0) {
+            await populateUserAndRoomDropdowns();
+        }
+
+        const form = document.getElementById('create-meeting-form');
+        document.getElementById('room-select').value = currentMeeting.room_id;
+
+        const startDate = new Date(currentMeeting.start_time);
+        const endDate = new Date(currentMeeting.end_time);
+
+        document.getElementById('start-time').value = toLocalISOStringShort(startDate);
+        document.getElementById('end-time').value = toLocalISOStringShort(endDate);
+
+        const attendeesSelect = document.getElementById('attendees-select');
+        Array.from(attendeesSelect.options).forEach(option => {
+            option.selected = currentMeeting.attendees.some(att => att.id === parseInt(option.value));
         });
-        alert(result.message);
-        loadHostMeetings(); // Refresh
+
+        editingMeetingId = meetingIdToEdit;
+
+        if (formTitleElement) {
+            formTitleElement.textContent = 'Update Meeting'; // Change title to "Update Meeting"
+        }
+
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (submitButton) {
+            // Ensure originalSubmitButtonText is captured if it wasn't during DOMContentLoaded
+            if (!originalSubmitButtonText && submitButton.textContent) {
+                 originalSubmitButtonText = submitButton.textContent;
+            }
+            submitButton.textContent = 'Update Meeting';
+        }
+
+        const cancelBtn = document.getElementById('cancel-edit-btn');
+        if (cancelBtn) {
+            cancelBtn.style.display = 'inline-block';
+        }
+
+        // Hide other meeting entries
+        const meetingsListDiv = document.getElementById('host-meetings-list');
+        if (meetingsListDiv) {
+            const meetingItems = meetingsListDiv.getElementsByTagName('li');
+            Array.from(meetingItems).forEach(item => {
+                if (item.id !== `meeting-item-${meetingIdToEdit}`) {
+                    item.style.display = 'none';
+                } else {
+                    item.style.display = ''; // Ensure the edited one is visible
+                }
+            });
+        }
+
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
     } catch (error) {
-        console.error('Failed to reschedule meeting:', error);
+        console.error('Failed to prepare meeting for reschedule:', error);
+        alert('Error preparing reschedule form: ' + (error.message || 'Unknown error'));
     }
+}
+
+function cancelEditMode() {
+    editingMeetingId = null;
+    const form = document.getElementById('create-meeting-form');
+    if (form) {
+        form.reset();
+    }
+
+    if (formTitleElement) {
+        formTitleElement.textContent = originalFormTitleText || 'Create New Meeting';
+    }
+
+    const submitButton = form.querySelector('button[type="submit"]');
+    if (submitButton) {
+        submitButton.textContent = originalSubmitButtonText || 'Create Meeting';
+    }
+
+    const cancelBtn = document.getElementById('cancel-edit-btn');
+    if (cancelBtn) {
+        cancelBtn.style.display = 'none';
+    }
+    
+    loadHostMeetings(); // Reload all meetings to make them visible
 }
 
 // Make functions globally accessible for inline event handlers (or refactor to use addEventListener)
