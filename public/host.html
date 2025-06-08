@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Host Dashboard - Attendance PoC</title>
+    <link rel="stylesheet" href="/public/style.css">
+</head>
+<body>
+    <div id="app">
+        <div id="host-view">
+            <h2>Host Dashboard</h2>
+            <p>Welcome, <span id="host-name"></span>! <button id="logout-btn">Logout</button></p>
+            
+            <h3>Create Meeting</h3>
+            <div>
+                <label for="room-select">Room:</label>
+                <select id="room-select"></select><br>
+                <label for="start-time">Start Time:</label>
+                <input type="datetime-local" id="start-time" required><br>
+                <label for="end-time">End Time:</label>
+                <input type="datetime-local" id="end-time" required><br>
+                <label for="attendees-select">Attendees (multi-select):</label>
+                <select id="attendees-select" multiple></select><br>
+                <button id="create-meeting-btn">Create Meeting</button>
+                <p id="create-meeting-message"></p>
+            </div>
+            
+            <h3>Your Meetings</h3>
+            <div id="host-meetings-list"></div>
+        </div>
+    </div>
+    <script src="/public/common.js"></script>
+    <script src="/public/host.js"></script>
+</body>
+</html>

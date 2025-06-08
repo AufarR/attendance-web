@@ -1,0 +1,98 @@
+body {
+    font-family: sans-serif;
+    margin: 20px;
+    background-color: #f4f4f4;
+    color: #333;
+}
+
+#app {
+    max-width: 800px;
+    margin: auto;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+h2, h3 {
+    color: #333;
+}
+
+input[type="email"],
+input[type="password"],
+input[type="datetime-local"],
+select {
+    width: calc(100% - 22px);
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+button {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+#auth-message,
+#create-meeting-message {
+    color: red;
+    font-size: 0.9em;
+}
+
+#host-meetings-list > div,
+#attendee-meetings-list > div {
+    border: 1px solid #eee;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+}
+
+#host-meetings-list h4,
+#attendee-meetings-list h4 {
+    margin-top: 0;
+}
+
+.attendee-item {
+    font-size: 0.9em;
+    color: #555;
+}
+
+.status-present {
+    color: green;
+    font-weight: bold;
+}
+
+.status-pending {
+    color: orange;
+}
+
+.status-absent {
+    color: red;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+#logout-btn-host, #logout-btn-attendee {
+    background-color: #dc3545;
+    margin-bottom: 15px;
+}
+
+#logout-btn-host:hover, #logout-btn-attendee:hover {
+    background-color: #c82333;
+}
