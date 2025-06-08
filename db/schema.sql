@@ -47,7 +47,7 @@ INSERT INTO rooms (name, description, service_uuid, characteristic_uuid, device_
 -- Users (Passwords will be hashed using bcrypt)
 -- In a real app, use Bun.password.hash() and Bun.password.verify() or a library like bcrypt
 INSERT INTO users (name, email, password, role) VALUES
-('Alice Host', 'alice@example.com', '$2b$10$E9.pG5v.Y7g5zZ0mJ0wLzOUPj3sL9Q8wR2nZ0mJ0wLzOUPj3sL9Q8wR', 'host'), -- example bcrypt hash for 'password123'
-('Bob Attendee', 'bob@example.com', '$2b$10$E9.pG5v.Y7g5zZ0mJ0wLzOUPj3sL9Q8wR2nZ0mJ0wLzOUPj3sL9Q8wR', 'attendee'), -- example bcrypt hash for 'password123'
-('Charlie Attendee', 'charlie@example.com', '$2b$10$E9.pG5v.Y7g5zZ0mJ0wLzOUPj3sL9Q8wR2nZ0mJ0wLzOUPj3sL9Q8wR', 'attendee'), -- example bcrypt hash for 'password123'
-('Diana Host', 'diana@example.com', '$2b$10$E9.pG5v.Y7g5zZ0mJ0wLzOUPj3sL9Q8wR2nZ0mJ0wLzOUPj3sL9Q8wR', 'host'); -- example bcrypt hash for 'password123'
+('Alice Host', 'alice@example.com', '$2y$10$4Bp7QoyFIlNstbxWIXzNauC/d7Tv4ScrU03oICkc8mXMtuAXjLc1W', 'host'), -- example bcrypt hash for 'password123'
+('Bob Attendee', 'bob@example.com', '$2y$10$4Bp7QoyFIlNstbxWIXzNauC/d7Tv4ScrU03oICkc8mXMtuAXjLc1W', 'attendee'), -- example bcrypt hash for 'password123'
+('Charlie Attendee', 'charlie@example.com', '$2y$10$4Bp7QoyFIlNstbxWIXzNauC/d7Tv4ScrU03oICkc8mXMtuAXjLc1W', 'attendee'), -- example bcrypt hash for 'password123'
+('Diana Host', 'diana@example.com', '$2y$10$4Bp7QoyFIlNstbxWIXzNauC/d7Tv4ScrU03oICkc8mXMtuAXjLc1W', 'host'); -- example bcrypt hash for 'password123'

@@ -42,8 +42,10 @@ function getSession(req: Request): SessionData | null {
 
 console.log("Hello via Bun!");
 
+const port = process.env.PORT || 3000; // Read port from .env or default to 3000
+
 const server = Bun.serve({
-    port: 3000,
+    port: Number(port), // Use the determined port
     websocket: undefined, // ADDED for type error
     async fetch(req) {
         const url = new URL(req.url);
