@@ -2,7 +2,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const user = await checkUserSessionAndRole('attendee');
     if (!user) return; // Stop further execution if user is not an attendee or not logged in
 
-    // We have window.currentUser from checkUserSessionAndRole if needed elsewhere
+    // Welcome message for attendee
+    const attendeeNameSpan = document.getElementById('attendee-name');
+    if (attendeeNameSpan && window.currentUser && window.currentUser.name) {
+        attendeeNameSpan.textContent = window.currentUser.name;
+    }
+
+    const logoutButton = document.getElementById('logout-btn'); 
+    if (logoutButton) {
+        logoutButton.addEventListener('click', logout);
+    }
+
     loadAttendeeMeetings();
 });
 

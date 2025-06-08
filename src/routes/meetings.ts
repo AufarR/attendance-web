@@ -20,6 +20,18 @@ export async function handleMeetingRoutes(req: Request, url: URL): Promise<Respo
                 return new Response(JSON.stringify({ message: 'Missing required fields' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
             }
 
+            // Server-side datetime sanity checks
+            const startTimeDate = new Date(start_time);
+            const endTimeDate = new Date(end_time);
+            const now = new Date();
+
+            if (startTimeDate < now) {
+                return new Response(JSON.stringify({ message: 'Start time cannot be in the past.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+            }
+            if (endTimeDate <= startTimeDate) {
+                return new Response(JSON.stringify({ message: 'End time must be after start time.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+            }
+
             const existingMeeting = db.query(
                 'SELECT id FROM meetings WHERE room_id = ? AND NOT (end_time <= ? OR start_time >= ?)'
             ).get(room_id, start_time, end_time);
@@ -144,6 +156,17 @@ export async function handleMeetingRoutes(req: Request, url: URL): Promise<Respo
                  return new Response(JSON.stringify({ message: 'Missing required fields for rescheduling' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
             }
 
+            // Server-side datetime sanity checks for rescheduling
+            const startTimeDate = new Date(start_time);
+            const endTimeDate = new Date(end_time);
+            // Note: We don't check if startTimeDate is in the past for rescheduling, 
+            // as a meeting might be ongoing and its end time is being extended.
+            // However, the client-side check for past *meetings* (not just start time) still applies for enabling reschedule button.
+
+            if (endTimeDate <= startTimeDate) {
+                return new Response(JSON.stringify({ message: 'End time must be after start time.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+            }
+
             const currentMeeting = db.query('SELECT end_time FROM meetings WHERE id = ?').get(meetingId) as any;
             if (new Date(currentMeeting.end_time) < new Date()) {
                 return new Response(JSON.stringify({ message: 'Cannot reschedule a past meeting' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
@@ -237,7 +260,7 @@ export async function handleMeetingRoutes(req: Request, url: URL): Promise<Respo
                  JOIN rooms r ON m.room_id = r.id
                  JOIN meeting_attendees ma ON m.id = ma.meeting_id
                  WHERE ma.user_id = ?
-                 ORDER BY m.start_time ASC`
+                 ORDER BY m.start_time DESC`
             ).all(userId);
             return new Response(JSON.stringify(meetings), { headers: { 'Content-Type': 'application/json' } });
         } catch (error) {

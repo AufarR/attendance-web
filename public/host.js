@@ -115,21 +115,38 @@ async function handleCreateMeeting(event) {
     event.preventDefault();
     const form = event.target;
     const roomId = document.getElementById('room-select').value;
-    const startTime = document.getElementById('start-time').value;
-    const endTime = document.getElementById('end-time').value;
+    const startTimeString = document.getElementById('start-time').value;
+    const endTimeString = document.getElementById('end-time').value;
     
     const attendeesSelect = document.getElementById('attendees-select');
     const selectedAttendees = Array.from(attendeesSelect.selectedOptions).map(option => option.value);
 
-    if (!roomId || !startTime || !endTime) {
+    if (!roomId || !startTimeString || !endTimeString) {
         alert('Please fill in all meeting details.');
+        return;
+    }
+
+    const startTime = new Date(startTimeString);
+    const endTime = new Date(endTimeString);
+    const now = new Date();
+
+    // Client-side datetime sanity checks
+    if (!editingMeetingId) { // Only check for past start time on new meetings
+        const nowFlooredToMinute = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes());
+        if (startTime < nowFlooredToMinute) {
+            alert('Start time cannot be in the past (allowing for current minute).');
+            return;
+        }
+    }
+    if (endTime <= startTime) {
+        alert('End time must be after start time.');
         return;
     }
     
     const meetingData = {
         room_id: parseInt(roomId),
-        start_time: new Date(startTime).toISOString(),
-        end_time: new Date(endTime).toISOString(),
+        start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(),
         attendees: selectedAttendees.map(id => parseInt(id)),
     };
 
@@ -181,7 +198,9 @@ async function loadHostMeetings() {
             li.id = `meeting-item-${meeting.id}`; // Add unique ID to each list item
             const now = new Date();
             const meetingEndTime = new Date(meeting.end_time);
-            const isPastMeeting = meetingEndTime < now;
+            const isPastMeeting = meetingEndTime < now; // Still useful for the (Past) label and buttons
+
+            const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
 
             let buttonsHtml = '';
             if (!isPastMeeting) {
@@ -196,7 +215,14 @@ async function loadHostMeetings() {
                 <p>Time: ${new Date(meeting.start_time).toLocaleString()} - ${new Date(meeting.end_time).toLocaleString()} ${isPastMeeting ? '(Past)' : ''}</p>
                 <p>Attendees:</p>
                 <ul>
-                    ${meeting.attendees.map(att => `<li>${att.name} (${att.email}) - Status: ${att.status || 'pending'} ${att.signed_presence ? '(Signed)' : ''}</li>`).join('')}
+                    ${meeting.attendees.map(att => {
+                        let displayStatus = att.status || 'pending';
+                        // Only mark as absent if the meeting ended more than 5 minutes ago
+                        if (meetingEndTime < fiveMinutesAgo && displayStatus === 'pending') {
+                            displayStatus = 'absent';
+                        }
+                        return `<li>${att.name} (${att.email}) - Status: ${displayStatus} ${att.signed_presence ? '(Signed)' : ''}</li>`;
+                    }).join('')}
                 </ul>
                 ${buttonsHtml}
             `;
