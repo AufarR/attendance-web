@@ -1,0 +1,77 @@
+**Project Goal & Core Requirements:**
+
+You are assisting with the development of a Proof of Concept (PoC) attendance website.
+
+*   **Tech Stack:**
+    *   Backend: Bun (TypeScript)
+    *   Database: SQLite
+    *   Frontend: Static HTML, CSS, and JavaScript (served by Bun)
+    *   Architecture: Multi-Page Application (MPA)
+*   **Data Model (SQLite - `db/schema.sql`):**
+    *   `users`: Stores user information (id, name, email, password (hashed with bcrypt), role ('host' or 'attendee')).
+    *   `rooms`: Stores meeting room details (id, name, description, ble\_service\_uuid, ble\_characteristic\_uuid, ble\_device\_name, public\_key (RSA for signature verification)).
+    *   `meetings`: Links rooms, hosts, and meeting times (id, room\_id, host\_id, start\_time, end\_time).
+    *   `meeting_attendees`: Tracks attendees for each meeting and their attendance status (id, meeting\_id, user\_id, status ('pending', 'present', 'absent'), signed\_presence (stores base64 signature)).
+*   **Core Functionality:**
+    *   **Authentication:**
+        *   User login (`/api/login`) with email and password.
+        *   Secure password storage using bcrypt.
+        *   HTTP-only cookie-based session management.
+        *   User logout (`/api/logout`).
+        *   Endpoint to get current user data (`/api/auth/me`).
+    *   **Host Role:**
+        *   Create new meetings (`/api/meetings`).
+        *   View their scheduled meetings with attendee status (`/api/host/my-meetings`).
+        *   Delete their meetings (with checks for ownership and ensuring meeting is not in the past) (`/api/meetings/:meetingId`).
+        *   Reschedule their meetings (with checks for ownership, past meetings, and room conflicts) (`/api/meetings/:meetingId`).
+        *   Get meeting details for prefilling forms (`/api/meetings/details/:meetingId`).
+    *   **Attendee Role:**
+        *   View meetings they are invited to (`/api/attendee/my-meetings`).
+        *   Mark their presence for a meeting (`/api/meetings/mark-presence`).
+            *   This involves (simulated for now) signing a string `meetingId:userId:timestampNonce` with a private key (conceptually via Web Bluetooth from a room\'s BLE device).
+            *   The backend verifies this signature against the room\'s stored RSA public key using Node.js `crypto` module.
+            *   A `timestampNonce` is used to prevent replay attacks (checked for freshness within a 5-minute window).
+    *   **General API Endpoints:**
+        *   Fetch all users (`/api/users`) - requires authentication.
+        *   Fetch all rooms (`/api/rooms`) - requires authentication.
+*   **Security & Authorization:**
+    *   Backend authorization checks based on user role (host/attendee) and resource ownership (e.g., a host can only modify their own meetings).
+*   **Environment Configuration:**
+    *   Uses a `.env` file (or `.env.template` as fallback) for `PORT` configuration. `.env` is in `.gitignore`.
+
+**Project Structure (Key Files):**
+
+*   `index.ts`: Main Bun server file, handles routing, API logic, static file serving.
+*   `src/db.ts`: SQLite database connection setup.
+*   `db/schema.sql`: SQL schema and initial data.
+*   `db/attendance.db`: SQLite database file.
+*   `public/`: Directory for static frontend assets.
+    *   `login.html`, `host.html`, `attendee.html`: HTML pages for different views.
+    *   `login.js`, `host.js`, `attendee.js`: JavaScript for respective pages.
+    *   `common.js`: Shared JavaScript utilities (e.g., `fetchApi`, `logout`, `checkUserSessionAndRole`).
+    *   `style.css`: Basic CSS.
+*   `.env.template`: Template for environment variables.
+*   `.gitignore`: Specifies intentionally untracked files.
+
+**Current State & Completed Work:**
+
+*   Bun project initialized with `sqlite` and `bcrypt` dependencies.
+*   Database schema (`db/schema.sql`) is defined and populated with initial data, including bcrypt-hashed passwords and a sample RSA public key for one room.
+*   Backend API endpoints in `index.ts` are implemented for all core functionalities listed above, including session management, authorization, and RSA-SHA256 signature verification for presence marking.
+*   Frontend MPA structure is in place with separate HTML/JS files for login, host, and attendee views.
+*   Client-side JavaScript in `common.js` (`checkUserSessionAndRole`) handles verifying user session and role by calling `/api/auth/me`, redirecting or alerting if unauthorized. `window.currentUser` stores fetched user data.
+*   `public/attendee.js` simulates BLE signing by preparing the `meetingId:userId:timestampNonce` string and sending it as `signed_data` (currently a placeholder like "simulated-signature") along with `timestamp_nonce` to the backend.
+*   `index.ts` reads the `PORT` from `.env` (or defaults to 3000).
+*   `.env` has been added to `.gitignore`.
+
+**Key Dependencies/Modules Used:**
+
+*   `bun` (runtime)
+*   `bun:sqlite` (SQLite driver)
+*   `bcrypt` (password hashing)
+*   `crypto` (Node.js built-in module for signature verification)
+
+**Next Steps (Previously Discussed/Deferred):**
+
+*   Full Web Bluetooth integration in `public/attendee.js` to replace the simulated signing.
+*   Potential UI/UX enhancements (e.g., using modals for forms, better error display).

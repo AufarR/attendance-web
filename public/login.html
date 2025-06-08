@@ -10,9 +10,13 @@
     <div id="app">
         <div id="auth-view">
             <h2>Login</h2>
-            <input type="email" id="email" placeholder="Email" required><br>
-            <input type="password" id="password" placeholder="Password" required><br>
-            <button id="login-btn">Login</button>
+            <form id="loginForm">
+                <label for="email">Email:</label><br>
+                <input type="email" id="email" placeholder="Email" required><br>
+                <label for="password">Password:</label><br>
+                <input type="password" id="password" placeholder="Password" required><br>
+                <button type="submit" id="login-btn">Login</button>
+            </form>
             <p id="auth-message"></p>
         </div>
     </div>

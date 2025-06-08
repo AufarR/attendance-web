@@ -13,18 +13,20 @@
             <p>Welcome, <span id="host-name"></span>! <button id="logout-btn">Logout</button></p>
             
             <h3>Create Meeting</h3>
-            <div>
-                <label for="room-select">Room:</label>
-                <select id="room-select"></select><br>
-                <label for="start-time">Start Time:</label>
-                <input type="datetime-local" id="start-time" required><br>
-                <label for="end-time">End Time:</label>
-                <input type="datetime-local" id="end-time" required><br>
-                <label for="attendees-select">Attendees (multi-select):</label>
-                <select id="attendees-select" multiple></select><br>
-                <button id="create-meeting-btn">Create Meeting</button>
-                <p id="create-meeting-message"></p>
-            </div>
+            <form id="create-meeting-form">
+                <div>
+                    <label for="room-select">Room:</label>
+                    <select id="room-select" name="roomId"></select><br>
+                    <label for="start-time">Start Time:</label>
+                    <input type="datetime-local" id="start-time" name="startTime" required><br>
+                    <label for="end-time">End Time:</label>
+                    <input type="datetime-local" id="end-time" name="endTime" required><br>
+                    <label for="attendees-select">Attendees (multi-select):</label>
+                    <select id="attendees-select" name="attendees" multiple></select><br>
+                    <button type="submit" id="create-meeting-btn">Create Meeting</button>
+                    <p id="create-meeting-message"></p>
+                </div>
+            </form>
             
             <h3>Your Meetings</h3>
             <div id="host-meetings-list"></div>

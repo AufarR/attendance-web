@@ -50,24 +50,33 @@ const server = Bun.serve({
     async fetch(req) {
         const url = new URL(req.url);
         const session = getSession(req);
+        const isApiRoute = url.pathname.startsWith('/api/');
 
-        // Serve static files from 'public' directory
-        if (url.pathname === '/' || url.pathname.startsWith('/public')) {
-            // If root, serve login.html. Otherwise, serve the requested file from public.
-            const filePath = url.pathname === '/' ? '/public/login.html' : url.pathname;
-            // Ensure filePath still starts with /public if it's not the root
-            const safeFilePath = filePath.startsWith('/public/') ? filePath : (filePath === '/public/login.html' ? filePath : `/public${filePath}`);
+        if (!isApiRoute) {
+            let diskPath; 
 
-            const file = Bun.file(`.${safeFilePath}`);
+            if (url.pathname === '/') {
+                diskPath = './public/login.html';
+            } else if (url.pathname.startsWith('/public/')) {
+                diskPath = `.${url.pathname}`;
+            } else if (url.pathname.endsWith('.html') || url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+                diskPath = `./public${url.pathname}`;
+            } else {
+                return new Response('File not found', { status: 404 });
+            }
+
+            const file = Bun.file(diskPath);
             if (await file.exists()) {
                 return new Response(file);
+            } else {
+                if (url.pathname === '/' && diskPath === './public/login.html') {
+                     const loginFile = Bun.file('./public/login.html');
+                     if (await loginFile.exists()) {
+                        return new Response(loginFile);
+                     }
+                }
+                return new Response('File not found', { status: 404 });
             }
-            // Fallback for root if login.html somehow not found, or other specific files
-            if (url.pathname === '/') {
-                 const loginFile = Bun.file('./public/login.html');
-                 if (await loginFile.exists()) return new Response(loginFile);
-            }
-            return new Response('File not found', { status: 404 });
         }
 
         // API routes
@@ -366,7 +375,10 @@ const server = Bun.serve({
                 const userId = session.userId;
                 const meetings = db.query(
                     `SELECT m.id, m.start_time, m.end_time, r.name as room_name, r.description as room_description,
-                            r.ble_service_uuid, r.ble_characteristic_uuid, r.ble_device_name, r.public_key as room_public_key,
+                            r.service_uuid as ble_service_uuid, 
+                            r.characteristic_uuid as ble_characteristic_uuid, 
+                            r.device_name as ble_device_name, 
+                            r.public_key as room_public_key,
                             ma.status as attendance_status, ma.signed_presence
                      FROM meetings m
                      JOIN rooms r ON m.room_id = r.id
@@ -387,8 +399,16 @@ const server = Bun.serve({
                 return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
             }
             try {
-                const { meeting_id, signed_data, timestamp_nonce } = await req.json() as any; // Added timestamp_nonce
+                const requestBody = await req.json() as any; // Log the whole body first
+                console.log('[/api/meetings/mark-presence] Received request body:', JSON.stringify(requestBody, null, 2));
+
+                const { meeting_id, signed_data, timestamp_nonce } = requestBody;
                 const user_id = session.userId;
+
+                console.log(`[/api/meetings/mark-presence] Processing: meeting_id=${meeting_id}, user_id=${user_id}, timestamp_nonce=${timestamp_nonce}`);
+                if (signed_data) {
+                    console.log(`[/api/meetings/mark-presence] Received signed_data (first 60 chars): ${String(signed_data).substring(0,60)}...`);
+                }
 
                 if (!meeting_id || !timestamp_nonce) { // Ensure timestamp_nonce is present
                     return new Response(JSON.stringify({ message: 'Missing meeting_id or timestamp_nonce' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
@@ -412,6 +432,8 @@ const server = Bun.serve({
                 if (!meetingDetails) {
                     return new Response(JSON.stringify({ message: 'Meeting not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
                 }
+                console.log('[/api/meetings/mark-presence] Meeting details found. Room public key (first 60 chars):', meetingDetails.room_public_key ? String(meetingDetails.room_public_key).substring(0,60) + '...' : 'NOT FOUND');
+
                 const now = new Date();
                 // Allow a 5 minute grace period for clock skew when checking timestamp_nonce for signature
                 const clientTimestamp = new Date(timestamp_nonce);
@@ -426,15 +448,22 @@ const server = Bun.serve({
                 let signatureVerified = false;
                 if (signed_data) {
                     if (!meetingDetails.room_public_key) {
+                        console.error('[/api/meetings/mark-presence] Error: Room public key not found for signature verification.');
                         return new Response(JSON.stringify({ message: 'Room public key not found for signature verification.' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
                     }
                     try {
                         const dataToVerify = `${meeting_id}:${user_id}:${timestamp_nonce}`;
+                        console.log(`[/api/meetings/mark-presence] DataToVerify string: "${dataToVerify}"`);
+                        console.log(`[/api/meetings/mark-presence] Using Public Key:\nSTART_OF_KEY\n${meetingDetails.room_public_key}\nEND_OF_KEY`); // Log the full key
+                        
                         const verify = createVerify('RSA-SHA256');
                         verify.update(dataToVerify);
+                        // Line 447 is likely here or the next line
                         signatureVerified = verify.verify(meetingDetails.room_public_key, signed_data, 'base64');
+                        console.log(`[/api/meetings/mark-presence] Signature verification result: ${signatureVerified}`);
                         
                         if (!signatureVerified) {
+                            console.warn('[/api/meetings/mark-presence] Signature verification failed.');
                             return new Response(JSON.stringify({ message: 'Invalid signature.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
                         }
                     } catch (e: any) {

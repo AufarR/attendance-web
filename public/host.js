@@ -1,11 +1,29 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    const user = await checkUserSessionAndRole('host');
-    if (!user) return; // Stop further execution if user is not a host or not logged in
+    // window.currentUser should be populated by checkUserSessionAndRole
+    await checkUserSessionAndRole('host'); 
+    
+    if (!window.currentUser || window.currentUser.role !== 'host') {
+        // checkUserSessionAndRole already handles redirection if user is not a host or not logged in.
+        // This is an additional safeguard or if checkUserSessionAndRole's behavior changes.
+        console.error("User is not a host or not logged in. Redirecting...");
+        // window.location.href = 'login.html'; // Redirection is handled by checkUserSessionAndRole
+        return; 
+    }
+
+    const hostNameSpan = document.getElementById('host-name');
+    if (hostNameSpan && window.currentUser) {
+        hostNameSpan.textContent = window.currentUser.name;
+    }
+
+    const logoutButton = document.getElementById('logout-btn'); // Corrected ID from host.html
+    if (logoutButton) {
+        logoutButton.addEventListener('click', logout); // logout is from common.js
+    }
 
     loadHostMeetings();
     populateUserAndRoomDropdowns();
 
-    const createMeetingForm = document.getElementById('createMeetingForm');
+    const createMeetingForm = document.getElementById('create-meeting-form'); // Corrected ID from host.html
     if (createMeetingForm) {
         createMeetingForm.addEventListener('submit', handleCreateMeeting);
     }
@@ -24,8 +42,8 @@ async function populateUserAndRoomDropdowns() {
         allUsers = await fetchApi('/users');
         allRooms = await fetchApi('/rooms');
 
-        const roomSelect = document.getElementById('roomId');
-        const attendeesSelect = document.getElementById('attendees'); // Assuming a multi-select
+        const roomSelect = document.getElementById('room-select'); // Corrected ID from host.html
+        const attendeesSelect = document.getElementById('attendees-select'); // Corrected ID from host.html
 
         if (roomSelect) {
             allRooms.forEach(room => {
@@ -53,11 +71,11 @@ async function populateUserAndRoomDropdowns() {
 
 async function handleCreateMeeting(event) {
     event.preventDefault();
-    const roomId = document.getElementById('roomId').value;
-    const startTime = document.getElementById('startTime').value;
-    const endTime = document.getElementById('endTime').value;
+    const roomId = document.getElementById('room-select').value; // Corrected ID
+    const startTime = document.getElementById('start-time').value; // Corrected ID
+    const endTime = document.getElementById('end-time').value; // Corrected ID
     
-    const attendeesSelect = document.getElementById('attendees');
+    const attendeesSelect = document.getElementById('attendees-select'); // Corrected ID
     const selectedAttendees = Array.from(attendeesSelect.selectedOptions).map(option => option.value);
 
     if (!roomId || !startTime || !endTime) {
@@ -88,7 +106,7 @@ async function handleCreateMeeting(event) {
 }
 
 async function loadHostMeetings() {
-    const meetingsListDiv = document.getElementById('hostMeetingsList');
+    const meetingsListDiv = document.getElementById('host-meetings-list'); // Corrected ID from host.html
     if (!meetingsListDiv) return;
     meetingsListDiv.innerHTML = '<p>Loading meetings...</p>';
 
@@ -141,13 +159,21 @@ async function deleteMeeting(meetingId) {
 async function rescheduleMeetingPrompt(meetingId) {
     // For simplicity, using prompts. A modal form would be better in a real app.
     // Fetch current meeting details to pre-fill, or have a dedicated reschedule form/page.
-    const currentMeeting = await fetchApi(`/meetings/details/${meetingId}`); // Assuming an endpoint to get one meeting's details
+    const currentMeeting = await fetchApi(`/meetings/details/${meetingId}`);
     if (!currentMeeting) {
         alert("Could not fetch meeting details to reschedule.");
         return;
     }
 
-    const newRoomId = prompt("Enter new Room ID:", currentMeeting.room_id);
+    // Ensure allRooms is populated before trying to use it for a prompt default
+    if (!allRooms || allRooms.length === 0) {
+        await populateUserAndRoomDropdowns(); // Attempt to populate if empty
+    }
+    
+    const currentRoom = allRooms.find(r => r.id === currentMeeting.room_id);
+    const roomPromptMessage = currentRoom ? `Enter new Room ID (current: ${currentMeeting.room_id} - ${currentRoom.name}):` : `Enter new Room ID (current: ${currentMeeting.room_id}):`;
+
+    const newRoomId = prompt(roomPromptMessage, currentMeeting.room_id);
     const newStartTimeStr = prompt("Enter new Start Time (YYYY-MM-DDTHH:MM):", currentMeeting.start_time.substring(0,16));
     const newEndTimeStr = prompt("Enter new End Time (YYYY-MM-DDTHH:MM):", currentMeeting.end_time.substring(0,16));
     

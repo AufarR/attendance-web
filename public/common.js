@@ -83,6 +83,8 @@ async function checkUserSession() {
 async function checkUserSessionAndRole(expectedRole) {
     try {
         const user = await fetchApi('/auth/me'); 
+        window.currentUser = user; // Store user data globally
+
         if (!user || !user.userId) {
             // Not authenticated or user data is incomplete
             if (!window.location.pathname.endsWith('login.html') && window.location.pathname !== '/') {
