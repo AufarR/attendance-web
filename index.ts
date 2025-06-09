@@ -4,6 +4,7 @@ import { handleAuthRoutes } from './src/routes/auth';
 import { handleMeetingRoutes } from './src/routes/meetings'; 
 import { handleUserRoutes } from './src/routes/users'; // Import user router
 import { handleRoomRoutes } from './src/routes/rooms'; // Import room router
+import { handlePublicRoutes } from './src/routes/public'; // Import public router
 
 console.log("Hello via Bun!");
 
@@ -14,10 +15,10 @@ const server = Bun.serve({
     websocket: undefined, 
     async fetch(req) {
         const url = new URL(req.url);
-        // const session = getSessionFromRequest(req); // Session is now fetched within individual route handlers
+        const session = getSessionFromRequest(req); // Fetch session for all requests
         const isApiRoute = url.pathname.startsWith('/api/');
 
-        // Handle auth routes first
+        // Handle auth routes first (these are public or have their own internal checks)
         if (url.pathname.startsWith('/api/login') || url.pathname.startsWith('/api/logout') || url.pathname.startsWith('/api/auth/me')) {
             const authResponse = await handleAuthRoutes(req, url);
             if (authResponse) return authResponse;
@@ -41,66 +42,11 @@ const server = Bun.serve({
             if (roomResponse) return roomResponse;
         }
 
+        // Handle public file serving and route protection
         if (!isApiRoute) {
-            let diskPath; 
-
-            if (url.pathname === '/') {
-                diskPath = './public/login.html';
-            } else if (url.pathname.startsWith('/public/')) {
-                diskPath = `.${url.pathname}`;
-            } else if (url.pathname.endsWith('.html') || url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
-                diskPath = `./public${url.pathname}`;
-            } else {
-                return new Response('File not found', { status: 404 });
-            }
-
-            const file = Bun.file(diskPath);
-            if (await file.exists()) {
-                return new Response(file);
-            } else {
-                if (url.pathname === '/' && diskPath === './public/login.html') {
-                     const loginFile = Bun.file('./public/login.html');
-                     if (await loginFile.exists()) {
-                        return new Response(loginFile);
-                     }
-                }
-                return new Response('File not found', { status: 404 });
-            }
+            const publicResponse = await handlePublicRoutes(req, url, session);
+            if (publicResponse) return publicResponse;
         }
-
-        // API routes
-        // All /api/login, /api/logout, /api/auth/me routes moved to src/routes/auth.ts
-        // All /api/meetings/*, /api/host/my-meetings, /api/attendee/my-meetings routes moved to src/routes/meetings.ts
-
-        // --- Host Routes ---
-        // Create meeting
-        // MOVED to src/routes/meetings.ts
-
-        // Get host's meetings (updated to /api/host/my-meetings)
-        // MOVED to src/routes/meetings.ts
-        
-        // Delete meeting (updated with authorization)
-        // MOVED to src/routes/meetings.ts
-
-        // Reschedule meeting (updated with authorization)
-        // MOVED to src/routes/meetings.ts
-
-        // Get meeting details (for prefilling reschedule form)
-        // MOVED to src/routes/meetings.ts
-
-        // --- Attendee Routes ---
-        // Get attendee's meetings (replaces the previous incomplete /api/attendee/meetings/:userId)
-        // MOVED to src/routes/meetings.ts
-
-        // Mark presence
-        // MOVED to src/routes/meetings.ts
-
-        // --- Generic Routes ---
-        // Get all users (for populating dropdowns, etc.)
-        // MOVED to src/routes/users.ts
-
-        // Get all rooms (for populating dropdowns, etc.)
-        // MOVED to src/routes/rooms.ts
         
         // Fallback for API routes not found
         if (url.pathname.startsWith('/api/')) {

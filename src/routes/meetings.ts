@@ -244,7 +244,9 @@ export async function handleMeetingRoutes(req: Request, url: URL): Promise<Respo
 
     // Get attendee's meetings
     if (url.pathname === '/api/attendee/my-meetings' && req.method === 'GET') {
-        const authResult = authorize(session, {}); // Any authenticated user can see their meetings
+        // Allow both 'attendee' and 'host' roles to fetch their meetings as an attendee.
+        // The session.userId will ensure they only get meetings they are specifically added to as an attendee.
+        const authResult = authorize(session, { allowedRoles: ['attendee', 'host'] }); 
         if (!authResult.authorized) return authResult.response;
         
         try {

@@ -94,7 +94,17 @@ async function checkUserSessionAndRole(expectedRole) {
             return null;
         }
 
-        if (expectedRole && user.role !== expectedRole) {
+        // If the expected role is 'attendee', allow both 'attendee' and 'host' roles.
+        // For other expected roles (e.g., 'host'), require an exact match.
+        if (expectedRole === 'attendee') {
+            if (user.role !== 'attendee' && user.role !== 'host') {
+                alert('Unauthenticated');
+                // Redirect to login as a fallback, or a more appropriate page if one exists
+                window.location.href = 'login.html';
+                return null;
+            }
+        } else if (expectedRole && user.role !== expectedRole) {
+            // Original logic for exact role match for other pages (e.g. host page)
             alert('Unauthenticated'); // Changed alert message
             // Redirect to an appropriate page, or login if no other page makes sense
             if (user.role === 'host') {
