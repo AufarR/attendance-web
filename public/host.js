@@ -5,19 +5,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!window.currentUser || window.currentUser.role !== 'host') {
         // checkUserSessionAndRole already handles redirection if user is not a host or not logged in.
         // This is an additional safeguard or if checkUserSessionAndRole's behavior changes.
-        console.error("User is not a host or not logged in. Redirecting...");
-        // window.location.href = 'login.html'; // Redirection is handled by checkUserSessionAndRole
+        console.error("User is not a host or not logged in. Redirection should be handled by checkUserSessionAndRole.");
         return; 
     }
 
     const hostNameSpan = document.getElementById('host-name');
-    if (hostNameSpan && window.currentUser) {
+    if (hostNameSpan && window.currentUser && window.currentUser.name) { // check name exists
         hostNameSpan.textContent = window.currentUser.name;
-    }
-
-    const logoutButton = document.getElementById('logout-btn'); // Corrected ID from host.html
-    if (logoutButton) {
-        logoutButton.addEventListener('click', logout); // logout is from common.js
     }
 
     loadHostMeetings();
@@ -84,10 +78,11 @@ async function populateUserAndRoomDropdowns() {
         allUsers = await fetchApi('/users');
         allRooms = await fetchApi('/rooms');
 
-        const roomSelect = document.getElementById('room-select'); // Corrected ID from host.html
-        const attendeesSelect = document.getElementById('attendees-select'); // Corrected ID from host.html
+        const roomSelect = document.getElementById('room-select');
+        const attendeesSelect = document.getElementById('attendees-select');
 
         if (roomSelect) {
+            roomSelect.innerHTML = ''; // Clear existing options before repopulating
             allRooms.forEach(room => {
                 const option = document.createElement('option');
                 option.value = room.id;
@@ -97,7 +92,9 @@ async function populateUserAndRoomDropdowns() {
         }
 
         if (attendeesSelect) {
-            allUsers.filter(user => user.role === 'attendee').forEach(user => {
+            attendeesSelect.innerHTML = ''; // Clear existing options before repopulating
+            // allUsers.filter(user => user.role === 'attendee').forEach(user => { // Old filter
+            allUsers.forEach(user => { // No filter, include all users (hosts and attendees)
                 const option = document.createElement('option');
                 option.value = user.id;
                 option.textContent = `${user.name} (${user.email})`;

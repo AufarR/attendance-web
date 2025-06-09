@@ -54,7 +54,8 @@ function logout() {
 
 // Add logout listener if logoutButton exists
 document.addEventListener('DOMContentLoaded', () => {
-    const logoutButton = document.getElementById('logoutButton');
+    // const logoutButton = document.getElementById('logoutButton'); // Old ID
+    const logoutButton = document.getElementById('logout-btn'); // New ID for menu bar logout
     if (logoutButton) {
         logoutButton.addEventListener('click', logout);
     }

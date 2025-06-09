@@ -24,9 +24,13 @@ export async function handleMeetingRoutes(req: Request, url: URL): Promise<Respo
             const startTimeDate = new Date(start_time);
             const endTimeDate = new Date(end_time);
             const now = new Date();
+            // Set seconds and milliseconds to 0 for both now and startTimeDate for comparison
+            now.setSeconds(0, 0);
+            const compareStartTime = new Date(startTimeDate);
+            compareStartTime.setSeconds(0, 0);
 
-            if (startTimeDate < now) {
-                return new Response(JSON.stringify({ message: 'Start time cannot be in the past.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+            if (compareStartTime < now) {
+              return new Response(JSON.stringify({ message: 'Start time cannot be in the past.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
             }
             if (endTimeDate <= startTimeDate) {
                 return new Response(JSON.stringify({ message: 'End time must be after start time.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });

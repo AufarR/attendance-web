@@ -13,8 +13,7 @@ export async function handleUserRoutes(req: Request, url: URL): Promise<Response
         if (!authResult.authorized) return authResult.response;
         
         try {
-            // Query only for users with the 'attendee' role
-            const users = db.query('SELECT id, name, email, role FROM users WHERE role = ?').all('attendee');
+            const users = db.query('SELECT id, name, email, role FROM users').all();
             return new Response(JSON.stringify(users), { headers: { 'Content-Type': 'application/json' } });
         } catch (error) {
             console.error('Error fetching users:', error);

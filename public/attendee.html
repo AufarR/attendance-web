@@ -7,19 +7,30 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header>
-        <h1>Attendee Dashboard</h1>
-        <p>Welcome, <span id="attendee-name"></span>! <button id="logout-btn">Logout</button></p>
-    </header>
-    <main>
-        <h2>My Meetings</h2>
-        <div id="meetingsList">
-            <!-- Meetings will be loaded here by attendee.js -->
-        </div>
-    </main>
-    <footer>
-        <p>&copy; 2025 Attendance System</p>
-    </footer>
+    <div class="menu-bar">
+        <div class="user-info">Welcome, <span id="attendee-name"></span>!</div>
+        <nav>
+            <a href="/host.html" id="view-host-link" style="display:none;">Host Dashboard</a>
+            <button id="logout-btn">Logout</button>
+        </nav>
+    </div>
+    <div id="app"> <!-- Added container -->
+        <div id="attendee-view"> <!-- Added view-specific container -->
+            <!-- <header>
+                <h1>Attendee Dashboard</h1>
+                <p>Welcome, <span id="attendee-name"></span>! <button id="logout-btn">Logout</button></p>
+            </header> -->
+            <main>
+                <h2>My Meetings</h2>
+                <div id="meetingsList">
+                    <!-- Meetings will be loaded here by attendee.js -->
+                </div>
+            </main>
+            <footer>
+                <p>&copy; 2025 Attendance System</p>
+            </footer>
+        </div> <!-- Close attendee-view -->
+    </div> <!-- Close app -->
     <script src="common.js"></script>
     <script src="attendee.js"></script>
 </body>

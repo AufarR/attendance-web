@@ -96,3 +96,68 @@ label {
 #logout-btn-host:hover, #logout-btn-attendee:hover {
     background-color: #c82333;
 }
+
+/* Menu Bar Styles */
+.menu-bar {
+    background-color: #333;
+    padding: 10px 20px;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.menu-bar .user-info {
+    font-size: 0.9em;
+}
+
+.menu-bar nav a,
+.menu-bar nav button {
+    color: white;
+    text-decoration: none;
+    padding: 8px 12px;
+    margin-left: 10px;
+    border-radius: 4px;
+    background-color: #555;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.menu-bar nav a:hover,
+.menu-bar nav button:hover {
+    background-color: #007bff;
+}
+
+.menu-bar nav button#logout-btn {
+    background-color: #dc3545; /* Specific style for logout */
+}
+
+.menu-bar nav button#logout-btn:hover {
+    background-color: #c82333;
+}
+
+/* Adjustments for existing logout button if any, to avoid conflict */
+/* For example, if old logout buttons were styled with #logout-btn-host or #logout-btn-attendee */
+/* We will now use a single #logout-btn within the menu bar */
+
+/* Responsive considerations for menu */
+@media (max-width: 600px) {
+    .menu-bar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .menu-bar nav {
+        margin-top: 10px;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    .menu-bar nav a,
+    .menu-bar nav button {
+        margin-left: 0;
+        margin-bottom: 5px;
+        text-align: center;
+    }
+}

@@ -8,9 +8,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         attendeeNameSpan.textContent = window.currentUser.name;
     }
 
-    const logoutButton = document.getElementById('logout-btn'); 
-    if (logoutButton) {
-        logoutButton.addEventListener('click', logout);
+    // The logout button is now in the menu bar and handled by common.js event listener
+
+    const viewHostLink = document.getElementById('view-host-link');
+    if (viewHostLink && window.currentUser && window.currentUser.role === 'host') {
+        viewHostLink.style.display = 'inline'; // Or 'block' or 'flex' depending on layout
     }
 
     loadAttendeeMeetings();
