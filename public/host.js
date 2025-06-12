@@ -175,14 +175,12 @@ async function handleCreateMeeting(event) {
 }
 
 async function loadHostMeetings() {
-    const meetingsListDiv = document.getElementById('host-meetings-list'); // Corrected ID from host.html
+    const meetingsListDiv = document.getElementById('host-meetings-list');
     if (!meetingsListDiv) return;
     meetingsListDiv.innerHTML = '<p>Loading meetings...</p>';
 
     try {
-        // The server should know the host_id from the session cookie.
-        // We need an endpoint like /api/host/my-meetings
-        const meetings = await fetchApi('/host/my-meetings'); // Updated endpoint
+        const meetings = await fetchApi('/host/my-meetings');
         
         if (meetings.length === 0) {
             meetingsListDiv.innerHTML = '<p>No meetings found.</p>';
@@ -192,16 +190,15 @@ async function loadHostMeetings() {
         const ul = document.createElement('ul');
         meetings.forEach(meeting => {
             const li = document.createElement('li');
-            li.id = `meeting-item-${meeting.id}`; // Add unique ID to each list item
+            li.id = `meeting-item-${meeting.id}`;
             const now = new Date();
             const meetingEndTime = new Date(meeting.end_time);
-            const isPastMeeting = meetingEndTime < now; // Still useful for the (Past) label and buttons
-
+            const isPastMeeting = meetingEndTime < now;
             const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
 
-            let buttonsHtml = '';
+            let actionButtonsHtml = '';
             if (!isPastMeeting) {
-                buttonsHtml = `
+                actionButtonsHtml = `
                     <button onclick="rescheduleMeetingPrompt(${meeting.id})">Reschedule</button>
                     <button onclick="deleteMeeting(${meeting.id})">Delete</button>
                 `;
@@ -211,17 +208,28 @@ async function loadHostMeetings() {
                 <h4>Meeting ID: ${meeting.id} (Room: ${meeting.room_name})</h4>
                 <p>Time: ${new Date(meeting.start_time).toLocaleString()} - ${new Date(meeting.end_time).toLocaleString()} ${isPastMeeting ? '(Past)' : ''}</p>
                 <p>Attendees:</p>
-                <ul>
+                <ul class="attendee-status-list">
                     ${meeting.attendees.map(att => {
                         let displayStatus = att.status || 'pending';
-                        // Only mark as absent if the meeting ended more than 5 minutes ago
                         if (meetingEndTime < fiveMinutesAgo && displayStatus === 'pending') {
                             displayStatus = 'absent';
                         }
-                        return `<li>${att.name} (${att.email}) - Status: ${displayStatus} ${att.signed_presence ? '(Signed)' : ''}</li>`;
+                        // Add buttons for manual status change
+                        let statusButtons = '';
+                        if (displayStatus !== 'present') { // Show if pending or absent
+                            statusButtons += `<button class="status-btn" onclick="manualSetAttendance(${meeting.id}, ${att.id}, 'present')">Mark Present</button>`;
+                        }
+                        if (displayStatus !== 'absent') { // Show if pending or present
+                            statusButtons += `<button class="status-btn" onclick="manualSetAttendance(${meeting.id}, ${att.id}, 'absent')">Mark Absent</button>`;
+                        }
+
+                        return `<li>
+                                    ${att.name} (${att.email}) - Status: <strong>${displayStatus}</strong> ${att.signed_presence ? '(Signed)' : ''}
+                                    <div class="manual-controls">${statusButtons}</div>
+                                </li>`;
                     }).join('')}
                 </ul>
-                ${buttonsHtml}
+                ${actionButtonsHtml}
             `;
             ul.appendChild(li);
         });
@@ -337,6 +345,24 @@ function cancelEditMode() {
     loadHostMeetings(); // Reload all meetings to make them visible
 }
 
-// Make functions globally accessible for inline event handlers (or refactor to use addEventListener)
+async function manualSetAttendance(meetingId, userId, status) {
+    if (!confirm(`Are you sure you want to mark this attendee as ${status}?`)) {
+        return;
+    }
+    try {
+        const result = await fetchApi(`/meetings/${meetingId}/attendees/${userId}/status`, {
+            method: 'POST',
+            body: JSON.stringify({ status: status }),
+        });
+        alert(result.message || `Successfully updated status to ${status}.`);
+        loadHostMeetings(); // Refresh the meetings list to show the updated status
+    } catch (error) {
+        console.error('Failed to manually set attendance:', error);
+        // Error is usually alerted by fetchApi
+    }
+}
+
+// Make functions globally accessible for inline event handlers
 window.deleteMeeting = deleteMeeting;
 window.rescheduleMeetingPrompt = rescheduleMeetingPrompt;
+window.manualSetAttendance = manualSetAttendance; // Expose the new function

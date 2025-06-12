@@ -114,20 +114,20 @@ label {
 
 .menu-bar nav a,
 .menu-bar nav button {
+    background-color: #0056b3;
     color: white;
+    padding: 8px 15px;
     text-decoration: none;
-    padding: 8px 12px;
-    margin-left: 10px;
     border-radius: 4px;
-    background-color: #555;
     border: none;
     cursor: pointer;
     font-size: 0.9em;
+    margin-left: 10px;
 }
 
 .menu-bar nav a:hover,
 .menu-bar nav button:hover {
-    background-color: #007bff;
+    background-color: #004494;
 }
 
 .menu-bar nav button#logout-btn {
@@ -160,4 +160,22 @@ label {
         margin-bottom: 5px;
         text-align: center;
     }
+}
+
+.attendee-status-list li {
+    margin-bottom: 10px; /* Add some space between attendee list items */
+}
+
+.manual-controls button.status-btn {
+    margin-left: 5px;
+    padding: 3px 6px;
+    font-size: 0.8em;
+    cursor: pointer;
+    background-color: #e0e0e0;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+
+.manual-controls button.status-btn:hover {
+    background-color: #d0d0d0;
 }

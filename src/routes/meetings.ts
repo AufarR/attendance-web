@@ -364,5 +364,62 @@ export async function handleMeetingRoutes(req: Request, url: URL): Promise<Respo
         }
     }
 
+    // Host manually updates attendee status
+    if (url.pathname.match(/^\/api\/meetings\/\d+\/attendees\/\d+\/status$/) && req.method === 'POST') {
+        const parts = url.pathname.split('/');
+        const meetingId = parseInt(parts[3]);
+        const userIdToUpdate = parseInt(parts[5]);
+
+        if (isNaN(meetingId) || isNaN(userIdToUpdate)) {
+            return new Response(JSON.stringify({ message: 'Invalid meeting ID or user ID' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        const meetingForAuth = db.query('SELECT host_id FROM meetings WHERE id = ?').get(meetingId) as any;
+        if (!meetingForAuth) {
+            return new Response(JSON.stringify({ message: 'Meeting not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        const authResult = authorize(session, { allowedRoles: ['host'], ownerIdToCheck: true, resourceOwnerId: meetingForAuth.host_id });
+        if (!authResult.authorized) return authResult.response;
+
+        try {
+            const { status } = await req.json() as any;
+            if (!status || !['present', 'absent', 'pending'].includes(status)) {
+                return new Response(JSON.stringify({ message: 'Invalid status provided. Must be one of: present, absent, pending.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+            }
+
+            // Check if the user is actually an attendee of this meeting
+            const meetingAttendee = db.query(
+                'SELECT user_id FROM meeting_attendees WHERE meeting_id = ? AND user_id = ?'
+            ).get(meetingId, userIdToUpdate) as any;
+
+            if (!meetingAttendee) {
+                return new Response(JSON.stringify({ message: 'User is not an attendee of this meeting.' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+            }
+
+            // Update the status
+            // If marking as 'present', we might want to clear signed_presence if it was manually set, or decide on a policy.
+            // For now, we'll just update status. If they were marked present via signature, signed_presence will remain.
+            // If marking as 'absent' or 'pending', clear any existing signature.
+            let signedPresenceToSet = meetingAttendee.signed_presence; // Keep existing by default
+            if (status === 'absent' || status === 'pending') {
+                signedPresenceToSet = null;
+            }
+
+            db.prepare(
+                'UPDATE meeting_attendees SET status = ?, signed_presence = ? WHERE meeting_id = ? AND user_id = ?'
+            ).run(status, signedPresenceToSet, meetingId, userIdToUpdate);
+
+            return new Response(JSON.stringify({ message: `Attendee status updated to ${status}` }), { headers: { 'Content-Type': 'application/json' } });
+
+        } catch (error) {
+            console.error('Error updating attendee status:', error);
+            if (error instanceof SyntaxError) {
+                return new Response(JSON.stringify({ message: 'Invalid request format.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+            }
+            return new Response(JSON.stringify({ message: 'Error updating attendee status' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+        }
+    }
+
     return undefined; // Path not handled by this router
 }
