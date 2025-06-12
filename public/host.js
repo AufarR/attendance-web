@@ -115,12 +115,13 @@ async function handleCreateMeeting(event) {
     const roomId = document.getElementById('room-select').value;
     const startTimeString = document.getElementById('start-time').value;
     const endTimeString = document.getElementById('end-time').value;
+    const description = document.getElementById('meeting-description').value;
     
     const attendeesSelect = document.getElementById('attendees-select');
     const selectedAttendees = Array.from(attendeesSelect.selectedOptions).map(option => option.value);
 
-    if (!roomId || !startTimeString || !endTimeString) {
-        alert('Please fill in all meeting details.');
+    if (!roomId || !startTimeString || !endTimeString || !description) { // Added !description check for client-side validation
+        alert('Please fill in all meeting details, including the description.');
         return;
     }
 
@@ -146,6 +147,7 @@ async function handleCreateMeeting(event) {
         start_time: startTime.toISOString(),
         end_time: endTime.toISOString(),
         attendees: selectedAttendees.map(id => parseInt(id)),
+        description: description, // Add description to payload
     };
 
     let url = '/meetings'; // Changed from '/api/meetings'
@@ -208,9 +210,9 @@ async function loadHostMeetings() {
 
 
             li.innerHTML = `
-                <h4>Meeting at ${meeting.room_name} on ${meetingTime} (ID: ${meeting.id})</h4>
+                <h4>${meeting.description ? escapeHTML(meeting.description) : `Meeting at ${escapeHTML(meeting.room_name)}`} on ${meetingTime} (ID: ${meeting.id})</h4>
+                ${meeting.description ? `<p><em>Room: ${escapeHTML(meeting.room_name)}</em></p>` : ''}
                 <p>Ends at: ${meetingEndTime.toLocaleString()}</p>
-                <p>Status: ${meeting.status || 'Scheduled'}</p>
                 <div class="meeting-actions">
                     ${meetingActions}
                 </div>
@@ -268,6 +270,8 @@ async function rescheduleMeetingPrompt(meetingIdToEdit) {
             alert("Could not fetch meeting details to reschedule.");
             return;
         }
+        // Ensure description is populated, even if it was somehow null from DB (though schema now prevents this)
+        document.getElementById('meeting-description').value = currentMeeting.description || ''; 
 
         if (allUsers.length === 0 || allRooms.length === 0) {
             await populateUserAndRoomDropdowns();
@@ -281,6 +285,7 @@ async function rescheduleMeetingPrompt(meetingIdToEdit) {
 
         document.getElementById('start-time').value = toLocalISOStringShort(startDate);
         document.getElementById('end-time').value = toLocalISOStringShort(endDate);
+        document.getElementById('meeting-description').value = currentMeeting.description || ''; // Populate description
 
         const attendeesSelect = document.getElementById('attendees-select');
         Array.from(attendeesSelect.options).forEach(option => {
@@ -333,6 +338,7 @@ function cancelEditMode() {
     const form = document.getElementById('create-meeting-form');
     if (form) {
         form.reset();
+        document.getElementById('meeting-description').value = ''; // Clear description on reset/cancel
     }
 
     if (formTitleElement) {
@@ -399,6 +405,21 @@ async function exportSingleMeetingCSV(meetingId) {
         console.error('Error exporting CSV for meeting ID ' + meetingId + ':', error);
         alert('An error occurred while exporting the CSV: ' + error.message);
     }
+}
+
+// Helper function to escape HTML to prevent XSS - add this at the top or in common.js if used elsewhere
+function escapeHTML(str) {
+    if (str === null || typeof str === 'undefined') return '';
+    return String(str).replace(/[&<>'"/]/g, function (s) {
+        return {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;',
+            '/': '&#x2F;'
+        }[s];
+    });
 }
 
 // Make functions globally accessible for inline event handlers

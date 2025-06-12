@@ -178,7 +178,7 @@ function convertMeetingDataToCSV(meetingData) {
     }
 
     const headers = [
-        'Meeting ID', 'Room Name', 'Start Time', 'End Time',
+        'Meeting ID', 'Meeting Description', 'Room Name', 'Start Time', 'End Time',
         'Attendee Name', 'Attendee Email', 'Attendance Status', 'Signature Provided'
     ];
     let csvRows = [headers.map(escapeCSVField).join(',')];
@@ -201,6 +201,7 @@ function convertMeetingDataToCSV(meetingData) {
 
             const row = [
                 meetingData.id,
+                meetingData.description, // Added meeting description
                 meetingData.room_name,
                 meetingStartTime,
                 meetingEndTime,
@@ -215,6 +216,7 @@ function convertMeetingDataToCSV(meetingData) {
         // Add a row indicating no attendees if that's the case, still including meeting details
         const row = [
             meetingData.id,
+            meetingData.description, // Added meeting description
             meetingData.room_name,
             meetingStartTime,
             meetingEndTime,

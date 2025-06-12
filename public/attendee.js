@@ -44,10 +44,26 @@ async function loadAttendeeMeetings() {
             // Use meeting.attendance_status instead of meeting.status
             let canMarkPresence = now >= startTime && now <= endTime && meeting.attendance_status !== 'present';
 
+            // Helper for escaping HTML, consider moving to common.js if not already there and used consistently
+            const escapeHTML = window.escapeHTML || function(str) { // Use window.escapeHTML if available
+                if (str === null || typeof str === 'undefined') return '';
+                return String(str).replace(/[&<>'"/]/g, function (s) {
+                    return {
+                        '&': '&amp;',
+                        '<': '&lt;',
+                        '>': '&gt;',
+                        '"': '&quot;',
+                        "'": '&#39;',
+                        '/': '&#x2F;'
+                    }[s];
+                });
+            };
+
             li.innerHTML = `
-                <h4>Meeting ID: ${meeting.id} (Room: ${meeting.room_name})</h4>
+                <h4>${escapeHTML(meeting.description)} (ID: ${meeting.id})</h4>
+                <p><em>Room: ${escapeHTML(meeting.room_name)}</em></p>
                 <p>Time: ${startTime.toLocaleString()} - ${endTime.toLocaleString()}</p>
-                <p>Status: ${meeting.attendance_status || 'pending'} ${meeting.signed_presence ? `(Signature: ${meeting.signed_presence.substring(0,30)}...)` : ''}</p>
+                <p>My Status: ${meeting.attendance_status || 'pending'} ${meeting.signed_presence ? `(Signature: ${meeting.signed_presence.substring(0,30)}...)` : ''}</p>
                 ${canMarkPresence ? `<button onclick="promptMarkPresence(${meeting.id})">Mark Presence</button>` : ''}
                 ${meeting.attendance_status === 'present' ? '<p><strong>Presence Marked</strong></p>' : ''}
                 ${now > endTime && meeting.attendance_status !== 'present' ? '<p>Meeting has ended, presence cannot be marked.</p>' : ''}

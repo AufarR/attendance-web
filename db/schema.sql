@@ -22,6 +22,8 @@ CREATE TABLE meetings (
   host_id INTEGER NOT NULL,
   start_time DATETIME NOT NULL,
   end_time DATETIME NOT NULL,
+  description TEXT NOT NULL, -- Made description mandatory, removed status
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (room_id) REFERENCES rooms(id),
   FOREIGN KEY (host_id) REFERENCES users(id)
 );
@@ -49,4 +51,4 @@ INSERT INTO users (name, email, password, role) VALUES
 ('Alice', 'alice@example.com', '$2a$12$kydWLWT9.vNRUq2PQrcz1OSeYGcGMohtVmSIM26UiZY6T8HpWVhYS', 'host'), 
 ('Bob', 'bob@example.com', '$2a$12$kydWLWT9.vNRUq2PQrcz1OSeYGcGMohtVmSIM26UiZY6T8HpWVhYS', 'attendee'), 
 ('Charlie', 'charlie@example.com', '$2a$12$kydWLWT9.vNRUq2PQrcz1OSeYGcGMohtVmSIM26UiZY6T8HpWVhYS', 'attendee'), 
-('Diana', 'diana@example.com', '$2a$12$kydWLWT9.vNRUq2PQrcz1OSeYGcGMohtVmSIM26UiZY6T8HpWVhYS', 'host'); 
+('Diana', 'diana@example.com', '$2a$12$kydWLWT9.vNRUq2PQrcz1OSeYGcGMohtVmSIM26UiZY6T8HpWVhYS', 'host');

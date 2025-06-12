@@ -13,11 +13,11 @@ export async function handleMeetingRoutes(req: Request, url: URL): Promise<Respo
         if (!authResult.authorized) return authResult.response;
 
         try {
-            const { room_id, start_time, end_time, attendees } = await req.json() as any;
-            const host_id = session!.userId; // Session is guaranteed to be present by authorize
+            const { room_id, start_time, end_time, attendees, description } = await req.json() as any;
+            const host_id = session!.userId; 
             
-            if (!room_id || !host_id || !start_time || !end_time || !attendees || !Array.isArray(attendees)) {
-                return new Response(JSON.stringify({ message: 'Missing required fields' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+            if (!room_id || !host_id || !start_time || !end_time || !attendees || !Array.isArray(attendees) || !description) { // Added !description
+                return new Response(JSON.stringify({ message: 'Missing required fields, including description' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
             }
 
             // Server-side datetime sanity checks
@@ -45,8 +45,8 @@ export async function handleMeetingRoutes(req: Request, url: URL): Promise<Respo
             }
 
             const meetingInsertResult = db.prepare(
-                'INSERT INTO meetings (room_id, host_id, start_time, end_time) VALUES (?, ?, ?, ?)'
-            ).run(room_id, host_id, start_time, end_time);
+                'INSERT INTO meetings (room_id, host_id, start_time, end_time, description) VALUES (?, ?, ?, ?, ?)'
+            ).run(room_id, host_id, start_time, end_time, description); // No longer defaulting to null
             
             const meetingId = meetingInsertResult.lastInsertRowid;
 
@@ -72,7 +72,7 @@ export async function handleMeetingRoutes(req: Request, url: URL): Promise<Respo
         try {
             const hostId = session!.userId;
             const meetings = db.query(
-                `SELECT m.id, m.start_time, m.end_time, r.name as room_name, r.description as room_description
+                `SELECT m.id, m.start_time, m.end_time, m.description, r.name as room_name, r.description as room_description
                  FROM meetings m
                  JOIN rooms r ON m.room_id = r.id
                  WHERE m.host_id = ?
@@ -154,10 +154,10 @@ export async function handleMeetingRoutes(req: Request, url: URL): Promise<Respo
         if (!authResult.authorized) return authResult.response;
 
         try {
-            const { room_id, start_time, end_time, attendees } = await req.json() as any;
+            const { room_id, start_time, end_time, attendees, description } = await req.json() as any; 
 
-            if (!room_id || !start_time || !end_time || !attendees || !Array.isArray(attendees)) {
-                 return new Response(JSON.stringify({ message: 'Missing required fields for rescheduling' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+            if (!room_id || !start_time || !end_time || !attendees || !Array.isArray(attendees) || !description) { // Added !description
+                 return new Response(JSON.stringify({ message: 'Missing required fields for rescheduling, including description' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
             }
 
             // Server-side datetime sanity checks for rescheduling
@@ -185,8 +185,8 @@ export async function handleMeetingRoutes(req: Request, url: URL): Promise<Respo
             }
 
             db.transaction(() => {
-                db.prepare('UPDATE meetings SET room_id = ?, start_time = ?, end_time = ? WHERE id = ?')
-                  .run(room_id, start_time, end_time, meetingId);
+                db.prepare('UPDATE meetings SET room_id = ?, start_time = ?, end_time = ?, description = ? WHERE id = ?')
+                  .run(room_id, start_time, end_time, description, meetingId); // No longer defaulting to null
                 
                 db.prepare('DELETE FROM meeting_attendees WHERE meeting_id = ?').run(meetingId);
                 if (attendees.length > 0) {
@@ -226,7 +226,7 @@ export async function handleMeetingRoutes(req: Request, url: URL): Promise<Respo
 
         try {
             const meeting = db.query(
-                `SELECT m.id, m.room_id, m.host_id, m.start_time, m.end_time, r.name as room_name
+                `SELECT m.id, m.room_id, m.host_id, m.start_time, m.end_time, m.description, r.name as room_name
                  FROM meetings m
                  JOIN rooms r ON m.room_id = r.id
                  WHERE m.id = ?`
@@ -256,7 +256,7 @@ export async function handleMeetingRoutes(req: Request, url: URL): Promise<Respo
         try {
             const userId = session!.userId;
             const meetings = db.query(
-                `SELECT m.id, m.start_time, m.end_time, r.name as room_name, r.description as room_description,
+                `SELECT m.id, m.start_time, m.end_time, m.description, r.name as room_name, r.description as room_description,
                         r.service_uuid as ble_service_uuid, 
                         r.characteristic_uuid as ble_characteristic_uuid, 
                         r.device_name as ble_device_name, 
