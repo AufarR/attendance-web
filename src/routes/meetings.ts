@@ -300,6 +300,10 @@ export async function handleMeetingRoutes(req: Request, url: URL): Promise<Respo
                 return new Response(JSON.stringify({ message: 'You are not an attendee of this meeting.' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
             }
 
+            if (meetingAttendee.status === 'absent') { // Check if already marked absent
+                return new Response(JSON.stringify({ message: 'Cannot mark presence, already marked as absent.', attendance_status: 'absent' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+            }
+
             if (meetingAttendee.status === 'present') {
                 return new Response(JSON.stringify({ message: 'Presence already marked.', attendance_status: 'present' }), { status: 409, headers: { 'Content-Type': 'application/json' } });
             }

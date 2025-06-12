@@ -63,15 +63,34 @@ async function loadAttendeeMeetings() {
                 `${escapeHTML(meeting.room_name)} (${escapeHTML(meeting.room_description)})` : 
                 escapeHTML(meeting.room_name);
 
+            // Condition for showing the sign presence button
+            const canSignPresence = !meeting.signed_presence && 
+                                    startTime <= now && 
+                                    endTime >= now && 
+                                    meeting.attendance_status == 'pending';
+
+            let signingStatusMessage = '';
+            if (canSignPresence) {
+                signingStatusMessage = `<button onclick="promptMarkPresence(${meeting.id})">Sign Presence</button>`;
+            } else {
+                if (meeting.signed_presence) {
+                    signingStatusMessage = '<p>Presence Signed (Signature Provided)</p>';
+                } else if (meeting.attendance_status === 'present') {
+                    signingStatusMessage = '<p>Presence Marked (Manually by Host)</p>';
+                } else if (meeting.attendance_status === 'absent') {
+                    signingStatusMessage = '<p>Signing not available (Marked Absent)</p>';
+                } else {
+                    signingStatusMessage = '<p>Signing not available</p>';
+                }
+            }
+
             li.innerHTML = `
                 <h4>${escapeHTML(meeting.description)} (ID: ${meeting.id})</h4>
                 <p>Room: ${roomDisplay}</p>
                 <p>Time: ${startTime.toLocaleString()} - ${endTime.toLocaleString()}</p>
                 <p>My Status: ${meeting.attendance_status || 'pending'} ${meeting.signed_presence ? `(Signature: ${meeting.signed_presence.substring(0,30)}...)` : ''}</p>
                 <div class="meeting-actions">
-                    ${!meeting.signed_presence && startTime <= now && endTime >= now ? 
-                        `<button onclick="promptMarkPresence(${meeting.id})">Sign Presence</button>` : 
-                        (meeting.signed_presence ? '<p>Presence Signed</p>' : '<p>Signing not available</p>')}
+                    ${signingStatusMessage}
                 </div>
             `;
             ul.appendChild(li);
