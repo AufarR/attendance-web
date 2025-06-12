@@ -62,6 +62,7 @@ let editingMeetingId = null; // To track the meeting ID being edited
 let originalSubmitButtonText = ''; // To store the original text of the submit button
 let formTitleElement = null; // To store the reference to the form title element
 let originalFormTitleText = ''; // To store the original text of the form title
+let hostMeetingsData = []; // To store fetched meetings for CSV export and other potential uses
 
 // Helper function to format a Date object to YYYY-MM-DDTHH:MM string in local time
 function toLocalISOStringShort(date) {
@@ -181,34 +182,40 @@ async function loadHostMeetings() {
 
     try {
         const meetings = await fetchApi('/host/my-meetings');
-        
+        hostMeetingsData = meetings; // Store meetings data
+
         if (meetings.length === 0) {
-            meetingsListDiv.innerHTML = '<p>No meetings found.</p>';
+            meetingsListDiv.innerHTML = '<p>You have not created any meetings yet.</p>';
             return;
         }
 
         const ul = document.createElement('ul');
         meetings.forEach(meeting => {
             const li = document.createElement('li');
-            li.id = `meeting-item-${meeting.id}`;
-            const now = new Date();
+            const meetingTime = new Date(meeting.start_time).toLocaleString();
             const meetingEndTime = new Date(meeting.end_time);
-            const isPastMeeting = meetingEndTime < now;
-            const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+            const now = new Date();
+            const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000); // 5 minutes ago
 
-            let actionButtonsHtml = '';
-            if (!isPastMeeting) {
-                actionButtonsHtml = `
-                    <button onclick="rescheduleMeetingPrompt(${meeting.id})">Reschedule</button>
-                    <button onclick="deleteMeeting(${meeting.id})">Delete</button>
-                `;
+            let meetingActions = '';
+            // Only show Reschedule and Delete for future or very recent meetings
+            if (meetingEndTime > now) {
+                meetingActions += `<button onclick="rescheduleMeetingPrompt(${meeting.id})">Reschedule</button> `;
+                meetingActions += `<button onclick="deleteMeeting(${meeting.id})">Delete</button> `;
             }
+            // Add Export CSV button for all meetings
+            meetingActions += `<button class="export-csv-btn" onclick="exportSingleMeetingCSV(${meeting.id})">Export CSV</button>`;
+
 
             li.innerHTML = `
-                <h4>Meeting ID: ${meeting.id} (Room: ${meeting.room_name})</h4>
-                <p>Time: ${new Date(meeting.start_time).toLocaleString()} - ${new Date(meeting.end_time).toLocaleString()} ${isPastMeeting ? '(Past)' : ''}</p>
+                <h4>Meeting at ${meeting.room_name} on ${meetingTime} (ID: ${meeting.id})</h4>
+                <p>Ends at: ${meetingEndTime.toLocaleString()}</p>
+                <p>Status: ${meeting.status || 'Scheduled'}</p>
+                <div class="meeting-actions">
+                    ${meetingActions}
+                </div>
                 <p>Attendees:</p>
-                <ul class="attendee-status-list">
+                <ul>
                     ${meeting.attendees.map(att => {
                         let displayStatus = att.status || 'pending';
                         if (meetingEndTime < fiveMinutesAgo && displayStatus === 'pending') {
@@ -229,7 +236,6 @@ async function loadHostMeetings() {
                                 </li>`;
                     }).join('')}
                 </ul>
-                ${actionButtonsHtml}
             `;
             ul.appendChild(li);
         });
@@ -237,6 +243,7 @@ async function loadHostMeetings() {
         meetingsListDiv.appendChild(ul);
     } catch (error) {
         console.error('Failed to load host meetings:', error);
+        hostMeetingsData = []; // Clear data on error
         meetingsListDiv.innerHTML = '<p>Error loading meetings. You might be logged out.</p>';
     }
 }
@@ -354,15 +361,48 @@ async function manualSetAttendance(meetingId, userId, status) {
             method: 'POST',
             body: JSON.stringify({ status: status }),
         });
-        alert(result.message || `Successfully updated status to ${status}.`);
-        loadHostMeetings(); // Refresh the meetings list to show the updated status
+        // alert(result.message); // Alert can be noisy, consider subtle feedback
+        loadHostMeetings(); // Refresh the list to show updated status
     } catch (error) {
-        console.error('Failed to manually set attendance:', error);
-        // Error is usually alerted by fetchApi
+        console.error('Failed to update attendance status:', error);
+        // fetchApi should alert the error message.
+    }
+}
+
+async function exportSingleMeetingCSV(meetingId) {
+    const meetingData = hostMeetingsData.find(m => m.id === meetingId);
+    if (!meetingData) {
+        alert('Meeting data not found. Please refresh and try again.');
+        return;
+    }
+
+    try {
+        // Ensure common.js functions are loaded and available on window
+        if (typeof window.convertMeetingDataToCSV !== 'function' || typeof window.downloadCSV !== 'function') {
+            alert('CSV export utilities are not available. Please try refreshing the page.');
+            console.error('CSV export functions not found on window object.');
+            return;
+        }
+
+        const csvContent = window.convertMeetingDataToCSV(meetingData);
+        if (!csvContent) {
+            alert('Failed to generate CSV content.');
+            return;
+        }
+
+        const dateForFile = new Date(meetingData.start_time).toISOString().split('T')[0]; // YYYY-MM-DD
+        const roomNameForFile = meetingData.room_name.replace(/[^a-z0-9_]/gi, '_').toLowerCase(); // Sanitize room name
+        const fileName = `meeting_${meetingData.id}_${roomNameForFile}_${dateForFile}_attendance.csv`;
+
+        window.downloadCSV(csvContent, fileName);
+    } catch (error) {
+        console.error('Error exporting CSV for meeting ID ' + meetingId + ':', error);
+        alert('An error occurred while exporting the CSV: ' + error.message);
     }
 }
 
 // Make functions globally accessible for inline event handlers
 window.deleteMeeting = deleteMeeting;
 window.rescheduleMeetingPrompt = rescheduleMeetingPrompt;
-window.manualSetAttendance = manualSetAttendance; // Expose the new function
+window.manualSetAttendance = manualSetAttendance;
+window.exportSingleMeetingCSV = exportSingleMeetingCSV; // Expose the new CSV export function

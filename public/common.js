@@ -138,3 +138,95 @@ async function checkUserSessionAndRole(expectedRole) {
 // Expose to global scope if needed by other scripts directly, or ensure scripts are modules
 window.checkUserSessionAndRole = checkUserSessionAndRole;
 window.fetchApi = fetchApi; // Ensure fetchApi is also available if not already
+
+// CSV Export Utilities
+function escapeCSVField(field) {
+    if (field === null || typeof field === 'undefined') {
+        return '';
+    }
+    let stringField = String(field);
+    // If the field contains a comma, newline, or double quote, enclose it in double quotes.
+    if (stringField.includes(',') || stringField.includes('\\n') || stringField.includes('"')) {
+        // Escape existing double quotes by doubling them
+        stringField = stringField.replace(/"/g, '""');
+        stringField = `"${stringField}"`;
+    }
+    return stringField;
+}
+
+function downloadCSV(csvContent, fileName) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) { // Feature detection
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', fileName);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    } else {
+        alert('CSV download is not supported by your browser.');
+    }
+}
+
+function convertMeetingDataToCSV(meetingData) {
+    if (!meetingData) {
+        console.error('No meeting data provided for CSV conversion.');
+        return '';
+    }
+
+    const headers = [
+        'Meeting ID', 'Room Name', 'Start Time', 'End Time',
+        'Attendee Name', 'Attendee Email', 'Attendance Status', 'Signature Provided'
+    ];
+    let csvRows = [headers.map(escapeCSVField).join(',')];
+
+    const meetingStartTime = new Date(meetingData.start_time).toLocaleString();
+    const meetingEndTime = new Date(meetingData.end_time).toLocaleString();
+
+    if (meetingData.attendees && meetingData.attendees.length > 0) {
+        meetingData.attendees.forEach(attendee => {
+            const now = new Date();
+            const meetingEndDate = new Date(meetingData.end_time);
+            const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+            
+            let displayStatus = attendee.status || 'pending';
+            if (meetingEndDate < fiveMinutesAgo && displayStatus === 'pending') {
+                displayStatus = 'absent';
+            }
+
+            const signatureProvided = attendee.signed_presence ? 'Yes' : 'No';
+
+            const row = [
+                meetingData.id,
+                meetingData.room_name,
+                meetingStartTime,
+                meetingEndTime,
+                attendee.name,
+                attendee.email,
+                displayStatus,
+                signatureProvided
+            ];
+            csvRows.push(row.map(escapeCSVField).join(','));
+        });
+    } else {
+        // Add a row indicating no attendees if that's the case, still including meeting details
+        const row = [
+            meetingData.id,
+            meetingData.room_name,
+            meetingStartTime,
+            meetingEndTime,
+            '(No attendees assigned)', '', '', ''
+        ];
+        csvRows.push(row.map(escapeCSVField).join(','));
+    }
+
+    return csvRows.join('\n');
+}
+
+// Expose CSV functions to global scope if they need to be called from other scripts directly
+window.escapeCSVField = escapeCSVField;
+window.downloadCSV = downloadCSV;
+window.convertMeetingDataToCSV = convertMeetingDataToCSV;
