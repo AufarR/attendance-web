@@ -21,6 +21,7 @@ h2, h3 {
 input[type="email"],
 input[type="password"],
 input[type="datetime-local"],
+input[type="text"], /* Added input[type="text"] here */
 select {
     width: calc(100% - 22px);
     padding: 10px;

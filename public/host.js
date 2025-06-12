@@ -208,10 +208,13 @@ async function loadHostMeetings() {
             // Add Export CSV button for all meetings
             meetingActions += `<button class="export-csv-btn" onclick="exportSingleMeetingCSV(${meeting.id})">Export CSV</button>`;
 
+            const roomDisplay = meeting.room_description ? 
+                `${escapeHTML(meeting.room_name)} (${escapeHTML(meeting.room_description)})` : 
+                escapeHTML(meeting.room_name);
 
             li.innerHTML = `
-                <h4>${meeting.description ? escapeHTML(meeting.description) : `Meeting at ${escapeHTML(meeting.room_name)}`} on ${meetingTime} (ID: ${meeting.id})</h4>
-                ${meeting.description ? `<p><em>Room: ${escapeHTML(meeting.room_name)}</em></p>` : ''}
+                <h4>${meeting.description ? escapeHTML(meeting.description) : `Meeting at ${roomDisplay}`} on ${meetingTime} (ID: ${meeting.id})</h4>
+                ${meeting.description ? `<p>Room: ${roomDisplay}</p>` : ''}
                 <p>Ends at: ${meetingEndTime.toLocaleString()}</p>
                 <div class="meeting-actions">
                     ${meetingActions}

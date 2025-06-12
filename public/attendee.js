@@ -38,9 +38,9 @@ async function loadAttendeeMeetings() {
         const ul = document.createElement('ul');
         currentMeetingsData.forEach(meeting => {
             const li = document.createElement('li');
-            const now = new Date();
             const startTime = new Date(meeting.start_time);
             const endTime = new Date(meeting.end_time);
+            const now = new Date();
             // Use meeting.attendance_status instead of meeting.status
             let canMarkPresence = now >= startTime && now <= endTime && meeting.attendance_status !== 'present';
 
@@ -59,15 +59,20 @@ async function loadAttendeeMeetings() {
                 });
             };
 
+            const roomDisplay = meeting.room_description ? 
+                `${escapeHTML(meeting.room_name)} (${escapeHTML(meeting.room_description)})` : 
+                escapeHTML(meeting.room_name);
+
             li.innerHTML = `
                 <h4>${escapeHTML(meeting.description)} (ID: ${meeting.id})</h4>
-                <p><em>Room: ${escapeHTML(meeting.room_name)}</em></p>
+                <p>Room: ${roomDisplay}</p>
                 <p>Time: ${startTime.toLocaleString()} - ${endTime.toLocaleString()}</p>
                 <p>My Status: ${meeting.attendance_status || 'pending'} ${meeting.signed_presence ? `(Signature: ${meeting.signed_presence.substring(0,30)}...)` : ''}</p>
-                ${canMarkPresence ? `<button onclick="promptMarkPresence(${meeting.id})">Mark Presence</button>` : ''}
-                ${meeting.attendance_status === 'present' ? '<p><strong>Presence Marked</strong></p>' : ''}
-                ${now > endTime && meeting.attendance_status !== 'present' ? '<p>Meeting has ended, presence cannot be marked.</p>' : ''}
-                ${now < startTime ? '<p>Meeting has not started yet.</p>' : ''}
+                <div class="meeting-actions">
+                    ${!meeting.signed_presence && startTime <= now && endTime >= now ? 
+                        `<button onclick="promptMarkPresence(${meeting.id})">Sign Presence</button>` : 
+                        (meeting.signed_presence ? '<p>Presence Signed</p>' : '<p>Signing not available</p>')}
+                </div>
             `;
             ul.appendChild(li);
         });
