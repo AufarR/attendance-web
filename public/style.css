@@ -167,16 +167,24 @@ label {
     margin-bottom: 10px; /* Add some space between attendee list items */
 }
 
+.manual-controls {
+    margin-top: 5px; /* Add some space above the buttons */
+    margin-bottom: 5px; /* Add some space below the buttons */
+}
+
 .manual-controls button.status-btn {
     margin-left: 5px;
-    padding: 3px 6px;
-    font-size: 0.8em;
+    margin-right: 5px; /* Add some space to the right of each button */
+    padding: 5px 10px; /* Increase padding for a better look and feel */
+    font-size: 0.85em; /* Slightly larger font */
     cursor: pointer;
-    background-color: #e0e0e0;
-    border: 1px solid #ccc;
-    border-radius: 3px;
+    background-color: #f0f0f0; /* Lighter background */
+    border: 1px solid #bbb; /* Slightly softer border */
+    border-radius: 4px; /* More rounded corners */
+    color: #333; /* Darker text for better contrast on light background */
 }
 
 .manual-controls button.status-btn:hover {
-    background-color: #d0d0d0;
+    background-color: #e0e0e0; /* Darken on hover */
+    border-color: #aaa;
 }
