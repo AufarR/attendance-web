@@ -13,21 +13,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({ email, password }),
                 });
 
-                alert(data.message); // "Login successful"
+                alert(data.message);
 
-                // Server will set HTTP-only cookie.
-                // Redirection based on role.
                 if (data.role === 'host') {
                     window.location.href = 'host.html';
                 } else if (data.role === 'attendee') {
                     window.location.href = 'attendee.html';
                 } else {
-                    // Fallback or error
                     alert('Unknown role or login issue.');
                 }
 
             } catch (error) {
-                // Error is already alerted by fetchApi, but you can add more specific handling if needed
                 console.error('Login attempt failed:', error);
             }
         });
