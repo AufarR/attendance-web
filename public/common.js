@@ -232,3 +232,19 @@ function convertMeetingDataToCSV(meetingData) {
 window.escapeCSVField = escapeCSVField;
 window.downloadCSV = downloadCSV;
 window.convertMeetingDataToCSV = convertMeetingDataToCSV;
+
+// HTML Escaping function
+function escapeHTML(str) {
+    if (str === null || typeof str === 'undefined') return '';
+    return String(str).replace(/[&<>'"/]/g, function (s) {
+        return {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;', // Using decimal NCR for apostrophe as some contexts prefer it
+            '/': '&#x2F;' // Using hex NCR for forward slash
+        }[s];
+    });
+}
+window.escapeHTML = escapeHTML;

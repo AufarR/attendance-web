@@ -117,33 +117,30 @@ async function promptMarkPresence(meetingId) {
     const timestampNonce = Date.now(); // Client generates nonce for the data payload
     const dataForPeripheralToSign = `${meeting.id}:${window.currentUser.userId}:${timestampNonce}`;
     
-    console.log(`[attendee.js] Data for peripheral to sign: \"${dataForPeripheralToSign}\"`);
+    //console.log(`[attendee.js] Data for peripheral to sign: \"${dataForPeripheralToSign}\"`);
 
     let signatureFromPeripheral = null;
 
     if (navigator.bluetooth) {
         try {
-            alert(`Attempting to connect to BLE device for room: ${escapeHTML(meeting.room_name)}...\\n` +
-                  `Service: ${meeting.ble_service_uuid}\\n` +
-                  `Write Char: ${meeting.ble_characteristic_uuid_write}\\n` +
-                  `Notify Char: ${meeting.ble_characteristic_uuid_notify}`);
+            //alert(`Attempting to connect to BLE device '${escapeHTML(meeting.ble_device_name)}' for room: ${escapeHTML(meeting.room_name)}...\n` +
+            //      `Service: ${meeting.ble_service_uuid}\n` +
+            //      `Write Char: ${meeting.ble_characteristic_uuid_write}\n` +
+            //      `Notify Char: ${meeting.ble_characteristic_uuid_notify}`);
 
             // 1. Request Bluetooth device.
             const deviceOptions = {
+                // acceptAllDevices: true,
+                // optionalServices: [meeting.ble_service_uuid],
                 filters: [
                     { services: [meeting.ble_service_uuid] },
                     { name: meeting.ble_device_name } // Filter by device name
                 ],
-                // You might also consider using acceptAllDevices: true and then filtering manually
-                // if combining filters like this doesn't work as expected across all platforms,
-                // or if the device name isn't always advertised.
-                // For more robust discovery, you might need to scan for devices first if the name is not part of the advertisement payload
-                // along with the service UUID.
             };
-            // Try with combined filters first. If issues arise, could fall back to service UUID only or more complex scanning.
-            console.log("Requesting device with options:", JSON.stringify(deviceOptions, null, 2));
+
+            //console.log("Requesting device with options:", JSON.stringify(deviceOptions, null, 2));
             const device = await navigator.bluetooth.requestDevice(deviceOptions);
-            console.log('Device found:', device.name, device.id);
+            //console.log('Device found', device.name, device.id);
 
             // 2. Connect to the GATT Server.
             const server = await device.gatt.connect();
@@ -151,52 +148,53 @@ async function promptMarkPresence(meetingId) {
 
             // 3. Get the Service.
             const service = await server.getPrimaryService(meeting.ble_service_uuid);
-            console.log('Service obtained');
+            //console.log('Service obtained');
 
-            // 4. Get the WRITE Characteristic.
-            const writeCharacteristic = await service.getCharacteristic(meeting.ble_characteristic_uuid_write);
-            console.log('Write characteristic obtained');
-
-            // 5. Prepare data and write to the WRITE characteristic.
-            const encoder = new TextEncoder(); // Standard UTF-8 encoder
-            const dataBuffer = encoder.encode(dataForPeripheralToSign);
-            await writeCharacteristic.writeValueWithResponse(dataBuffer); // Or writeValueWithoutResponse depending on peripheral
-            console.log('Data written to peripheral:', dataForPeripheralToSign);
-
-            // 6. Get the NOTIFY Characteristic.
+            // 4. Get the NOTIFY Characteristic.
             const notifyCharacteristic = await service.getCharacteristic(meeting.ble_characteristic_uuid_notify);
-            console.log('Notify characteristic obtained');
+            //console.log('Notify characteristic obtained');
 
-            // 7. Start notifications and listen for the signature.
+            // 5. Start notifications and set up listener for the signature.
             await notifyCharacteristic.startNotifications();
-            console.log('Notifications started');
+            //console.log('Notifications started on notify characteristic');
 
-            signatureFromPeripheral = await new Promise((resolve, reject) => {
+            const signaturePromise = new Promise((resolve, reject) => {
                 const handleCharacteristicValueChanged = event => {
                     notifyCharacteristic.removeEventListener('characteristicvaluechanged', handleCharacteristicValueChanged);
                     const value = event.target.value; // This is a DataView
-                    // Convert DataView to string/Base64 as needed.
-                    // Assuming the peripheral sends the signature as a UTF-8 encoded string (which can represent Base64)
                     const decoder = new TextDecoder('utf-8');
                     const receivedSignature = decoder.decode(value);
-                    console.log('Signature received from peripheral:', receivedSignature);
-                    resolve(receivedSignature); 
+                    //console.log('Signature received from peripheral:', receivedSignature);
+                    resolve(receivedSignature);
                 };
                 notifyCharacteristic.addEventListener('characteristicvaluechanged', handleCharacteristicValueChanged);
-                
-                // Add a timeout for the promise
+
                 setTimeout(() => {
                     notifyCharacteristic.removeEventListener('characteristicvaluechanged', handleCharacteristicValueChanged);
                     reject(new Error('Timeout waiting for signature notification (30s)'));
                 }, 30000); // 30s timeout
             });
-            
-            await notifyCharacteristic.stopNotifications();
-            console.log('Notifications stopped');
 
-            console.log(`Signature received from peripheral: \"${signatureFromPeripheral ? signatureFromPeripheral.substring(0, 60) : 'N/A'}...\"`);
+            // 6. Get the WRITE Characteristic.
+            const writeCharacteristic = await service.getCharacteristic(meeting.ble_characteristic_uuid_write);
+            //console.log('Write characteristic obtained');
+
+            // 7. Prepare data and write to the WRITE characteristic.
+            // This write operation is expected to trigger the notification with the signature.
+            const encoder = new TextEncoder(); // Standard UTF-8 encoder
+            const dataBuffer = encoder.encode(dataForPeripheralToSign);
+            await writeCharacteristic.writeValueWithResponse(dataBuffer); // Or writeValueWithoutResponse depending on peripheral
+            //console.log('Data written to peripheral:', dataForPeripheralToSign);
             
-            // 8. Disconnect from the GATT server.
+            // 8. Await the signature from the notification.
+            signatureFromPeripheral = await signaturePromise;
+            //console.log(`Signature awaited and received: ${signatureFromPeripheral ? signatureFromPeripheral.substring(0, 60) : 'N/A'}...`);
+            
+            // 9. Stop notifications.
+            await notifyCharacteristic.stopNotifications();
+            //console.log('Notifications stopped');
+
+            // 10. Disconnect from the GATT server.
             if (server.connected) {
                 server.disconnect();
                 console.log('Disconnected from GATT server');
@@ -204,7 +202,7 @@ async function promptMarkPresence(meetingId) {
 
         } catch (error) {
             console.error("Bluetooth Web API error:", error);
-            alert("Bluetooth connection or interaction failed: " + error.message + "\\nEnsure the device is in range, powered on, and permissions are granted. Check console for details. Also ensure the device name ('" + meeting.ble_device_name + "') and service UUID are being advertised correctly.");
+            alert("Bluetooth connection or interaction failed: " + error.message + "\nEnsure the device is in range, powered on, and permissions are granted. Check console for details. Also ensure the device name ('" + meeting.ble_device_name + "') and service UUID are being advertised correctly.");
             // Attempt to disconnect if server object exists and is connected
             // This is a best-effort cleanup in case of error during connection steps.
             if (typeof server !== 'undefined' && server && server.connected) {
