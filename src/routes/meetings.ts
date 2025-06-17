@@ -50,7 +50,7 @@ export async function handleMeetingRoutes(req: Request, url: URL): Promise<Respo
             
             const meetingId = meetingInsertResult.lastInsertRowid;
 
-            if (attendees.length > 0) {
+            if (attendees.length > 0) { // Removed extraneous comma
                 const stmt = db.prepare('INSERT INTO meeting_attendees (meeting_id, user_id) VALUES (?, ?)');
                 for (const userId of attendees) {
                     stmt.run(meetingId, userId);
@@ -255,10 +255,8 @@ export async function handleMeetingRoutes(req: Request, url: URL): Promise<Respo
         
         try {
             const userId = session!.userId;
-            const meetings = db.query(
+            const meetingsFromDb = db.query(
                 `SELECT m.id, m.start_time, m.end_time, m.description, r.name as room_name, r.description as room_description,
-                        r.service_uuid as ble_service_uuid, 
-                        r.characteristic_uuid as ble_characteristic_uuid, 
                         r.device_name as ble_device_name, 
                         r.public_key as room_public_key,
                         ma.status as attendance_status, ma.signed_presence
@@ -267,8 +265,16 @@ export async function handleMeetingRoutes(req: Request, url: URL): Promise<Respo
                  JOIN meeting_attendees ma ON m.id = ma.meeting_id
                  WHERE ma.user_id = ?
                  ORDER BY m.start_time DESC`
-            ).all(userId);
-            return new Response(JSON.stringify(meetings), { headers: { 'Content-Type': 'application/json' } });
+            ).all(userId) as any[];
+
+            const meetingsWithBleUuids = meetingsFromDb.map(meeting => ({
+                ...meeting,
+                ble_service_uuid: process.env.BLE_SERVICE_UUID,
+                ble_characteristic_uuid_write: process.env.BLE_CHARACTERISTIC_UUID_WRITE, // Renamed
+                ble_characteristic_uuid_notify: process.env.BLE_CHARACTERISTIC_UUID_NOTIFY // Added
+            }));
+
+            return new Response(JSON.stringify(meetingsWithBleUuids), { headers: { 'Content-Type': 'application/json' } });
         } catch (error) {
             console.error('Error fetching attendee meetings:', error);
             return new Response(JSON.stringify({ message: 'Error fetching meetings' }), { status: 500, headers: { 'Content-Type': 'application/json' } });

@@ -109,38 +109,121 @@ async function promptMarkPresence(meetingId) {
         alert("Meeting details not found.");
         return;
     }
-    // Ensure currentUser is available (should be set by checkUserSessionAndRole)
     if (!window.currentUser || !window.currentUser.userId) {
         alert("User session not found. Please try logging in again.");
         return;
     }
 
-    const timestampNonce = Date.now(); 
-
-    let dataToSign = '';
-    let simulatedSignedData = null; 
-
-    // BLE interaction is now mandatory for signing
-    dataToSign = `${meeting.id}:${window.currentUser.userId}:${timestampNonce}`;
-    console.log(`[attendee.js] Attempting to sign data: "${dataToSign}"`); 
-    try {
-        simulatedSignedData = await signDataRsaSha256(rsaPrivateKeyPem, dataToSign);
-        alert(`Data to sign: "${dataToSign}"\nSimulated RSA-SHA256 Signature (Base64): "${simulatedSignedData.substring(0, 60)}..."`);
-
-    } catch (cryptoError) {
-        console.warn("Web Crypto signing failed, falling back to basic simulation:", cryptoError);
-        alert("Web Crypto signing failed. Using basic simulated signature.");
-        // Fallback to a basic simulated signature if crypto fails, but still send something.
-        simulatedSignedData = `CRYPTO_FAILED_SIM_SIG_FOR_${dataToSign}`;
-    }
+    const timestampNonce = Date.now(); // Client generates nonce for the data payload
+    const dataForPeripheralToSign = `${meeting.id}:${window.currentUser.userId}:${timestampNonce}`;
     
+    console.log(`[attendee.js] Data for peripheral to sign: \"${dataForPeripheralToSign}\"`);
+
+    let signatureFromPeripheral = null;
+
     if (navigator.bluetooth) {
-            alert(`(Simulating BLE connection for room: ${meeting.room_name}\\nService: ${meeting.ble_service_uuid}\\nCharacteristic: ${meeting.ble_characteristic_uuid})`);
+        try {
+            alert(`Attempting to connect to BLE device for room: ${escapeHTML(meeting.room_name)}...\\n` +
+                  `Service: ${meeting.ble_service_uuid}\\n` +
+                  `Write Char: ${meeting.ble_characteristic_uuid_write}\\n` +
+                  `Notify Char: ${meeting.ble_characteristic_uuid_notify}`);
+
+            // 1. Request Bluetooth device.
+            const deviceOptions = {
+                filters: [
+                    { services: [meeting.ble_service_uuid] },
+                    { name: meeting.ble_device_name } // Filter by device name
+                ],
+                // You might also consider using acceptAllDevices: true and then filtering manually
+                // if combining filters like this doesn't work as expected across all platforms,
+                // or if the device name isn't always advertised.
+                // For more robust discovery, you might need to scan for devices first if the name is not part of the advertisement payload
+                // along with the service UUID.
+            };
+            // Try with combined filters first. If issues arise, could fall back to service UUID only or more complex scanning.
+            console.log("Requesting device with options:", JSON.stringify(deviceOptions, null, 2));
+            const device = await navigator.bluetooth.requestDevice(deviceOptions);
+            console.log('Device found:', device.name, device.id);
+
+            // 2. Connect to the GATT Server.
+            const server = await device.gatt.connect();
+            console.log('Connected to GATT server');
+
+            // 3. Get the Service.
+            const service = await server.getPrimaryService(meeting.ble_service_uuid);
+            console.log('Service obtained');
+
+            // 4. Get the WRITE Characteristic.
+            const writeCharacteristic = await service.getCharacteristic(meeting.ble_characteristic_uuid_write);
+            console.log('Write characteristic obtained');
+
+            // 5. Prepare data and write to the WRITE characteristic.
+            const encoder = new TextEncoder(); // Standard UTF-8 encoder
+            const dataBuffer = encoder.encode(dataForPeripheralToSign);
+            await writeCharacteristic.writeValueWithResponse(dataBuffer); // Or writeValueWithoutResponse depending on peripheral
+            console.log('Data written to peripheral:', dataForPeripheralToSign);
+
+            // 6. Get the NOTIFY Characteristic.
+            const notifyCharacteristic = await service.getCharacteristic(meeting.ble_characteristic_uuid_notify);
+            console.log('Notify characteristic obtained');
+
+            // 7. Start notifications and listen for the signature.
+            await notifyCharacteristic.startNotifications();
+            console.log('Notifications started');
+
+            signatureFromPeripheral = await new Promise((resolve, reject) => {
+                const handleCharacteristicValueChanged = event => {
+                    notifyCharacteristic.removeEventListener('characteristicvaluechanged', handleCharacteristicValueChanged);
+                    const value = event.target.value; // This is a DataView
+                    // Convert DataView to string/Base64 as needed.
+                    // Assuming the peripheral sends the signature as a UTF-8 encoded string (which can represent Base64)
+                    const decoder = new TextDecoder('utf-8');
+                    const receivedSignature = decoder.decode(value);
+                    console.log('Signature received from peripheral:', receivedSignature);
+                    resolve(receivedSignature); 
+                };
+                notifyCharacteristic.addEventListener('characteristicvaluechanged', handleCharacteristicValueChanged);
+                
+                // Add a timeout for the promise
+                setTimeout(() => {
+                    notifyCharacteristic.removeEventListener('characteristicvaluechanged', handleCharacteristicValueChanged);
+                    reject(new Error('Timeout waiting for signature notification (30s)'));
+                }, 30000); // 30s timeout
+            });
+            
+            await notifyCharacteristic.stopNotifications();
+            console.log('Notifications stopped');
+
+            console.log(`Signature received from peripheral: \"${signatureFromPeripheral ? signatureFromPeripheral.substring(0, 60) : 'N/A'}...\"`);
+            
+            // 8. Disconnect from the GATT server.
+            if (server.connected) {
+                server.disconnect();
+                console.log('Disconnected from GATT server');
+            }
+
+        } catch (error) {
+            console.error("Bluetooth Web API error:", error);
+            alert("Bluetooth connection or interaction failed: " + error.message + "\\nEnsure the device is in range, powered on, and permissions are granted. Check console for details. Also ensure the device name ('" + meeting.ble_device_name + "') and service UUID are being advertised correctly.");
+            // Attempt to disconnect if server object exists and is connected
+            // This is a best-effort cleanup in case of error during connection steps.
+            if (typeof server !== 'undefined' && server && server.connected) {
+                server.disconnect();
+                console.log('Disconnected from GATT server due to error.');
+            }
+            return; // Stop if BLE interaction fails
+        }
     } else {
-        alert('Web Bluetooth API is not available. Proceeding with simulated signature.');
+        alert('Web Bluetooth API is not available in this browser. Cannot sign presence.');
+        return; // Stop if no Web Bluetooth
     }
     
-    await attemptMarkPresence(meetingId, simulatedSignedData, timestampNonce);
+    if (!signatureFromPeripheral) {
+        alert("No signature was obtained from the peripheral. Cannot mark presence.");
+        return;
+    }
+
+    await attemptMarkPresence(meetingId, signatureFromPeripheral, timestampNonce);
 }
 
 
@@ -220,6 +303,8 @@ jHM5LBgHvT78wBfvOQDjYbpVDcMOhG6o/cTZzTcLOsg0TdqwPgMIDLwzos3ZWqQN
 B5N863jfbzPp7dpn/fpM0SI=
 -----END PRIVATE KEY-----`;
 
+// The signDataRsaSha256 and rsaPrivateKeyPem are no longer used by promptMarkPresence
+// to simulate the peripheral's signature but are kept for potential other uses or future simulation needs.
 async function signDataRsaSha256(privateKeyPem, dataString) {
     try {
         const privateKeyBuffer = pemToPkcs8ArrayBuffer(privateKeyPem);
