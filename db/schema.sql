@@ -44,9 +44,9 @@ INSERT INTO rooms (name, description, device_name, public_key) VALUES
 ('Multimedia', 'Labtek 5 lt. 3', 'RoomBService', '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyCCXU37nqdTtejm7he2N\nr6Me9M++PGVGHhbwwswZMKZ5m74K7zTpMoXyEcuHdCFHAZPJYkwDtReEM935NqvS\n+ST9vToEiXuAT0VpnIZ1KaxPQBMU/nzPbibW49phIdVM3oHDbcMaYWAJG5a+7og8\nkXtDAHQDyqfnUNHrQ38CWYlxH49dWKSdxmtEOEszru9vfpM24VT+44Kd38g3HWrL\nOzZNXll/5fNEs8aSRPf2/m8B8toUdP1weyCKxMrcFMEC+B9oyKWUcLIbidfZgyCn\nrqSWbPh2um19xLr2ivvQTcNoV2I+Ey9c3peCRfXCUckRLyR6HoXU2kePt4kmCVql\nBwIDAQAB\n-----END PUBLIC KEY-----'),
 ('Ruang Rapat STEI', 'Labtek 5 lt. 2', 'RoomCService', '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyCCXU37nqdTtejm7he2N\nr6Me9M++PGVGHhbwwswZMKZ5m74K7zTpMoXyEcuHdCFHAZPJYkwDtReEM935NqvS\n+ST9vToEiXuAT0VpnIZ1KaxPQBMU/nzPbibW49phIdVM3oHDbcMaYWAJG5a+7og8\nkXtDAHQDyqfnUNHrQ38CWYlxH49dWKSdxmtEOEszru9vfpM24VT+44Kd38g3HWrL\nOzZNXll/5fNEs8aSRPf2/m8B8toUdP1weyCKxMrcFMEC+B9oyKWUcLIbidfZgyCn\nrqSWbPh2um19xLr2ivvQTcNoV2I+Ey9c3peCRfXCUckRLyR6HoXU2kePt4kmCVql\nBwIDAQAB\n-----END PUBLIC KEY-----');
 
--- Users (Passwords will be hashed using argon2)
+-- Users (Passwords will be hashed using argon2id)
 INSERT INTO users (name, email, password, role) VALUES
-('Alice', 'alice@example.com', '$argon2i$v=19$m=4096,t=2,p=1$WTI1V0xrZDlaQWo2WFRweg$0VB99B/6UabKdFq9/f8e5A', 'host'), 
-('Bob', 'bob@example.com', '$argon2i$v=19$m=4096,t=2,p=1$WTI1V0xrZDlaQWo2WFRweg$0VB99B/6UabKdFq9/f8e5A', 'attendee'), 
-('Charlie', 'charlie@example.com', '$argon2i$v=19$m=4096,t=2,p=1$WTI1V0xrZDlaQWo2WFRweg$0VB99B/6UabKdFq9/f8e5A', 'attendee'), 
-('Diana', 'diana@example.com', '$argon2i$v=19$m=4096,t=2,p=1$WTI1V0xrZDlaQWo2WFRweg$0VB99B/6UabKdFq9/f8e5A', 'host');
+('Alice', 'alice@example.com', '$argon2id$v=19$m=8192,t=2,p=1$N2c0QTFHdHhQdEE3N3RRYw$AAVd9Cg6d7ge254LU+/PeQ', 'host'), 
+('Bob', 'bob@example.com', '$argon2id$v=19$m=8192,t=2,p=1$N2c0QTFHdHhQdEE3N3RRYw$AAVd9Cg6d7ge254LU+/PeQ', 'attendee'), 
+('Charlie', 'charlie@example.com', '$argon2id$v=19$m=8192,t=2,p=1$N2c0QTFHdHhQdEE3N3RRYw$AAVd9Cg6d7ge254LU+/PeQ', 'attendee'), 
+('Diana', 'diana@example.com', '$argon2id$v=19$m=8192,t=2,p=1$N2c0QTFHdHhQdEE3N3RRYw$AAVd9Cg6d7ge254LU+/PeQ', 'host');
