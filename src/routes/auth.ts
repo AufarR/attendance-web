@@ -1,7 +1,7 @@
 import db from '../db'; // Changed to default import
 import { sessions, SESSION_DURATION_MINUTES, getSessionFromRequest } from '../sessions';
 import type { Session } from '../types';
-import bcrypt from 'bcrypt';
+import argon2 from 'argon2';
 import { randomUUID } from 'crypto';
 
 export async function handleAuthRoutes(req: Request, url: URL): Promise<Response | undefined> {
@@ -12,7 +12,7 @@ export async function handleAuthRoutes(req: Request, url: URL): Promise<Response
             const { email, password } = await req.json();
             const user = db.query('SELECT * FROM users WHERE email = ?').get(email) as any;
 
-            if (user && await bcrypt.compare(password, user.password)) {
+            if (user && await argon2.verify(user.password, password)) {
                 const sessionId = randomUUID();
                 const expires = new Date(Date.now() + SESSION_DURATION_MINUTES * 60 * 1000);
                 sessions.set(sessionId, { 
