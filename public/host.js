@@ -300,6 +300,11 @@ async function rescheduleMeetingPrompt(meetingIdToEdit) {
             cancelBtn.style.display = 'inline-block';
         }
 
+        const yourMeetingsTitle = document.getElementById('your-meetings-title');
+        if (yourMeetingsTitle) {
+            yourMeetingsTitle.style.display = 'none';
+        }
+
         // Hide other meeting entries
         const meetingsListDiv = document.getElementById('host-meetings-list');
         if (meetingsListDiv) {
@@ -341,6 +346,11 @@ function cancelEditMode() {
     const cancelBtn = document.getElementById('cancel-edit-btn');
     if (cancelBtn) {
         cancelBtn.style.display = 'none';
+    }
+
+    const yourMeetingsTitle = document.getElementById('your-meetings-title');
+    if (yourMeetingsTitle) {
+        yourMeetingsTitle.style.display = '';
     }
     
     loadHostMeetings();

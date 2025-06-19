@@ -30,13 +30,13 @@
                     <label for="meeting-description">Description:</label>
                     <input type="text" id="meeting-description" name="description" maxlength="255" required><br> 
                     <label for="attendees-select">Attendees (multi-select):</label>
-                    <select id="attendees-select" name="attendees" multiple></select><br>
+                    <select id="attendees-select" name="attendees" multiple required></select><br>
                     <button type="submit" id="create-meeting-btn">Create Meeting</button>
                     <p id="create-meeting-message"></p>
                 </div>
             </form>
             
-            <h3>Your Meetings</h3>
+            <h3 id="your-meetings-title">Your Meetings</h3>
             <div id="host-meetings-list"></div>
         </div>
     </div>
